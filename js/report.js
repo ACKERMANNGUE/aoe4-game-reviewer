@@ -5,6 +5,7 @@
 import { escHtml } from './utils.js';
 
 let _charts = [];
+let _chartConfigs = [];
 
 // ─────────────────────────────────────────────
 // Public API
@@ -34,6 +35,7 @@ export function openReport(gameJSON, markdownText) {
       document.body.classList.remove('printing-report');
     }, { once: true });
   });
+  document.getElementById('rp-save-html').addEventListener('click', () => exportHTML(gameJSON));
 
   // Render charts after a tick so canvas dimensions are computed
   requestAnimationFrame(() => renderCharts(gameJSON));
@@ -47,9 +49,109 @@ export function closeReport() {
   document.body.style.overflow = '';
 }
 
+// ─────────────────────────────────────────────
+// HTML export
+// ─────────────────────────────────────────────
+
+async function exportHTML(gameJSON) {
+  const btn = document.getElementById('rp-save-html');
+  const origText = btn.textContent;
+  btn.textContent = 'Building…';
+  btn.disabled = true;
+
+  try {
+    // 1. Clone the report body – canvases stay empty, Chart.js will fill them
+    const body = document.querySelector('#report-view .rp-body');
+    const clone = body.cloneNode(true);
+
+    // 2. Fetch and inline the stylesheet
+    let css = '';
+    try {
+      const resp = await fetch('css/style.css');
+      css = await resp.text();
+    } catch (_) { /* best-effort */ }
+
+    // 3. Serialize chart configs.
+    //    Function values are preserved as tagged strings so they can be revived
+    //    in the exported document (callbacks, tick formatters, etc.).
+    const FUNC_TAG = '__FN__:';
+    const chartDataJSON = JSON.stringify(_chartConfigs, (_k, v) => {
+      if (typeof v === 'function') return FUNC_TAG + v.toString();
+      return v;
+    // Escape </ so the embedded JSON cannot accidentally close the <script> tag.
+    }).replace(/</g, '\\u003c');
+
+    // 4. Build the match title
+    const { match } = gameJSON;
+    const title = `AOE4 Report \u2013 Game #${match.game_id} \u2013 ${match.map}`;
+
+    // 5. Assemble self-contained interactive HTML
+    const html = [
+      '<!DOCTYPE html>',
+      '<html lang="en">',
+      '<head>',
+      '  <meta charset="UTF-8">',
+      '  <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+      `  <title>${escHtml(title)}</title>`,
+      '  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"><\/script>',
+      '  <style>',
+      css,
+      '/* Standalone export overrides */',
+      'body { padding: 0 !important; }',
+      '#report-view { position: static !important; overflow: visible !important; height: auto !important; display: flex !important; flex-direction: column; }',
+      '.rp-toolbar { display: none !important; }',
+      '  </style>',
+      '</head>',
+      '<body>',
+      '<div id="report-view">',
+      `  <div class="rp-body">${clone.innerHTML}</div>`,
+      '</div>',
+      '<script>',
+      '(function () {',
+      `  var FUNC_TAG = ${JSON.stringify(FUNC_TAG)};`,
+      '  function revive(v) {',
+      '    if (typeof v === "string" && v.indexOf(FUNC_TAG) === 0) {',
+      '      try { return new Function("return (" + v.slice(FUNC_TAG.length) + ")")(); } catch(e) { return undefined; }',
+      '    }',
+      '    if (Array.isArray(v)) return v.map(revive);',
+      '    if (v && typeof v === "object") {',
+      '      var out = {};',
+      '      Object.keys(v).forEach(function(k) { out[k] = revive(v[k]); });',
+      '      return out;',
+      '    }',
+      '    return v;',
+      '  }',
+      `  var charts = revive(${chartDataJSON});`,
+      '  charts.forEach(function(entry) {',
+      '    var el = document.getElementById(entry.id);',
+      '    if (el && window.Chart) new window.Chart(el, entry.cfg);',
+      '  });',
+      '})();',
+      '<\/script>',
+      '</body>',
+      '</html>',
+    ].join('\n');
+
+    // 6. Trigger download
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `aoe4-report-game-${match.game_id}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+}
+
 function destroyCharts() {
   _charts.forEach(c => { try { c.destroy(); } catch (_) {} });
   _charts = [];
+  _chartConfigs = [];
 }
 
 // ─────────────────────────────────────────────
@@ -157,6 +259,7 @@ function buildHTML(gameJSON) {
         <span class="rp-meta">${escHtml(match.map)} - ${match.duration_display} - Patch ${match.patch} - ${escHtml(match.server)}</span>
       </div>
       <button class="rp-save-btn" id="rp-save-pdf">Save to PDF</button>
+      <button class="rp-save-btn rp-save-html-btn" id="rp-save-html">Save HTML</button>
     </div>
 
     <div class="rp-body">
@@ -183,6 +286,7 @@ function buildHTML(gameJSON) {
 function mkChart(id, cfg) {
   const el = document.getElementById(id);
   if (!el || !window.Chart) return;
+  _chartConfigs.push({ id, cfg });
   const c = new window.Chart(el, cfg);
   _charts.push(c);
 }
@@ -590,7 +694,7 @@ function renderAgeTimeline(gameJSON, allPlayers) {
 
   mkChart('rp-age-timeline', {
     type: 'bar',
-    data: { labels: AGE_LABELS, datasets },
+    data: { labels: AGE_LABELS, datasets, tooltipMeta },
     options: {
       indexAxis: 'y',
       responsive: true,
@@ -607,10 +711,13 @@ function renderAgeTimeline(gameJSON, allPlayers) {
             label: ctx => {
               const val = ctx.raw;
               if (!Array.isArray(val)) return '';
-              const info = tooltipMeta[ctx.dataset.label]?.[ctx.dataIndex];
-              if (!info) return `${ctx.dataset.label}: ${fmtMin((val[0] + val[1]) / 2)}`;
-              const landmarkPart = info.landmark ? ` - ${info.landmark}` : '';
-              return `${ctx.dataset.label}: ${info.timeStr}${landmarkPart}`;
+              const meta = ctx.chart.data.tooltipMeta?.[ctx.dataset.label]?.[ctx.dataIndex];
+              if (!meta) {
+                const mid = (val[0] + val[1]) / 2;
+                const m = Math.floor(mid), s = Math.round((mid - m) * 60);
+                return `${ctx.dataset.label}: ${m}:${String(s).padStart(2, '0')}`;
+              }
+              return `${ctx.dataset.label}: ${meta.timeStr}${meta.landmark ? ` - ${meta.landmark}` : ''}`;
             },
           },
         },
@@ -619,7 +726,7 @@ function renderAgeTimeline(gameJSON, allPlayers) {
         x: {
           min: 0,
           max: gameDurMin || 30,
-          ticks: { color: '#666', font: { size: 10 }, maxTicksLimit: 12, callback: fmtMin },
+          ticks: { color: '#666', font: { size: 10 }, maxTicksLimit: 12, callback: v => { const m = Math.floor(v); return `${m}:${String(Math.round((v - m) * 60)).padStart(2, '0')}`; } },
           grid: { color: '#1e1e1e' },
           title: { display: true, text: 'minutes', color: '#555', font: { size: 10 } },
         },
@@ -703,6 +810,7 @@ function renderPieChart(canvasId, tl, playerLabel, eventType) {
           borderWidth: 1,
           callbacks: {
             label: ctx => {
+              const total = ctx.dataset.data.reduce((s, v) => s + v, 0);
               const pct = Math.round(ctx.parsed / total * 100);
               return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
             },

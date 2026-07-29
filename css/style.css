@@ -808,6 +808,14 @@ header p {
 .rp-save-btn:hover  { filter: brightness(1.12); }
 .rp-save-btn:active { transform: scale(0.97); }
 
+.rp-save-html-btn {
+  background: transparent;
+  border: 1px solid var(--gold-dark);
+  color: var(--gold);
+}
+.rp-save-html-btn:hover  { background: rgba(201,162,39,.1); filter: none; }
+.rp-save-html-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; filter: none; }
+
 @media (max-width: 700px) {
   .rp-md-section { padding: 18px 16px; }
   .rp-charts-row { grid-template-columns: 1fr; }
