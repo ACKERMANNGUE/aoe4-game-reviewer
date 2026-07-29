@@ -148,6 +148,44 @@ header p {
   background: rgba(201, 162, 39, 0.08);
 }
 
+/* ──── Profiles row ──── */
+.profiles-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.profiles-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.profiles-select {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  color: var(--text-bright);
+  cursor: pointer;
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.profiles-select:focus { border-color: var(--gold); }
+
+.profile-delete-btn {
+  padding: 5px 11px;
+  font-size: 0.9rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 /* ──── API Key row ──── */
 .api-key-row {
   display: flex;

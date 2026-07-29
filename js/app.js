@@ -478,6 +478,73 @@ function initThemePanel() {
 }
 
 // ─────────────────────────────────────────────
+// Saved profiles (localStorage)
+// ─────────────────────────────────────────────
+
+const PROFILES_KEY = 'aoe4_saved_profiles';
+
+function loadProfiles() {
+  try { return JSON.parse(localStorage.getItem(PROFILES_KEY)) || []; }
+  catch (_) { return []; }
+}
+
+function persistProfiles(profiles) {
+  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+}
+
+function renderProfilesDropdown() {
+  const profiles = loadProfiles();
+  const row = document.getElementById('profiles-row');
+  const sel = document.getElementById('profiles-select');
+  if (!row || !sel) return;
+
+  if (!profiles.length) {
+    row.style.display = 'none';
+    return;
+  }
+
+  row.style.display = 'flex';
+  sel.innerHTML = '<option value="">\u2014 Select a profile \u2014</option>' +
+    profiles.map((p, i) => `<option value="${i}">${escHtml(p.label)}</option>`).join('');
+}
+
+function handleSaveProfile() {
+  const input = document.getElementById('player-input').value.trim();
+  if (!input && !state.player) return;
+
+  const profiles = loadProfiles();
+  let label, query;
+
+  if (state.player) {
+    const name = state.player.name || input;
+    const pid  = state.player.profile_id;
+    label = `${name} (${pid})`;
+    query = String(pid);
+  } else {
+    label = input;
+    query = input;
+  }
+
+  // Avoid exact duplicates
+  if (profiles.some(p => p.query === query)) {
+    const btn = document.getElementById('save-profile-btn');
+    const orig = btn.textContent;
+    btn.textContent = 'Already saved';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+    return;
+  }
+
+  profiles.push({ label, query });
+  persistProfiles(profiles);
+  renderProfilesDropdown();
+
+  const btn = document.getElementById('save-profile-btn');
+  const orig = btn.textContent;
+  btn.textContent = 'Saved!';
+  setTimeout(() => { btn.textContent = orig; }, 1500);
+}
+
+// ─────────────────────────────────────────────
 // Bootstrap
 // ─────────────────────────────────────────────
 
@@ -497,6 +564,32 @@ function init() {
     });
   }
   updateApiKeyStatus();
+
+  // ── Saved profiles ──
+  renderProfilesDropdown();
+
+  document.getElementById('save-profile-btn').addEventListener('click', handleSaveProfile);
+
+  document.getElementById('profiles-select').addEventListener('change', e => {
+    const idx = e.target.value;
+    if (idx === '') return;
+    const profiles = loadProfiles();
+    const profile = profiles[parseInt(idx, 10)];
+    if (!profile) return;
+    document.getElementById('player-input').value = profile.query;
+    e.target.value = '';          // reset dropdown to placeholder
+    handleSearch();
+  });
+
+  document.getElementById('profile-delete-btn').addEventListener('click', () => {
+    const sel = document.getElementById('profiles-select');
+    const idx = sel.value;
+    if (idx === '') return;
+    const profiles = loadProfiles();
+    profiles.splice(parseInt(idx, 10), 1);
+    persistProfiles(profiles);
+    renderProfilesDropdown();
+  });
 
   // ── Search ──
   document.getElementById('player-input').addEventListener('keydown', e => {

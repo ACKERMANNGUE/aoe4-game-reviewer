@@ -64,14 +64,29 @@ async function exportHTML(gameJSON) {
     const body = document.querySelector('#report-view .rp-body');
     const clone = body.cloneNode(true);
 
-    // 2. Fetch and inline the stylesheet
+    // 2. Snapshot the active theme variables from :root so the exported file
+    //    keeps the exact colours the user had at export time.
+    const THEME_VARS = [
+      '--bg', '--bg-card', '--bg-card-hover', '--bg-modal',
+      '--border', '--border-light',
+      '--gold', '--gold-dark',
+      '--red', '--red-light', '--green', '--green-light', '--blue',
+      '--text', '--text-muted', '--text-bright',
+      '--radius',
+    ];
+    const rootStyle = getComputedStyle(document.documentElement);
+    const themeOverride = ':root {\n' +
+      THEME_VARS.map(v => `  ${v}: ${rootStyle.getPropertyValue(v).trim()};`).join('\n') +
+      '\n}';
+
+    // 3. Fetch and inline the stylesheet
     let css = '';
     try {
       const resp = await fetch('css/style.css');
       css = await resp.text();
     } catch (_) { /* best-effort */ }
 
-    // 3. Serialize chart configs.
+    // 4. Serialize chart configs.
     //    Function values are preserved as tagged strings so they can be revived
     //    in the exported document (callbacks, tick formatters, etc.).
     const FUNC_TAG = '__FN__:';
@@ -81,7 +96,7 @@ async function exportHTML(gameJSON) {
     // Escape </ so the embedded JSON cannot accidentally close the <script> tag.
     }).replace(/</g, '\\u003c');
 
-    // 4. Build the match title
+    // 5. Build the match title
     const { match } = gameJSON;
     const title = `AOE4 Report \u2013 Game #${match.game_id} \u2013 ${match.map}`;
 
@@ -96,6 +111,7 @@ async function exportHTML(gameJSON) {
       '  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"><\/script>',
       '  <style>',
       css,
+      themeOverride,
       '/* Standalone export overrides */',
       'body { padding: 0 !important; }',
       '#report-view { position: static !important; overflow: visible !important; height: auto !important; display: flex !important; flex-direction: column; }',

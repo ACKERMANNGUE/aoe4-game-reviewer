@@ -21,6 +21,11 @@
   </header>
 
   <section id="search-section">
+    <div class="profiles-row" id="profiles-row" style="display:none">
+      <span class="profiles-label">Profiles</span>
+      <select id="profiles-select" class="profiles-select"><option value="">— Select a profile —</option></select>
+      <button class="btn btn-secondary profile-delete-btn" id="profile-delete-btn" title="Delete selected profile">×</button>
+    </div>
     <div class="search-row">
       <input
         type="text"
@@ -35,6 +40,7 @@
         <option value="50">50</option>
       </select>
       <button class="btn" id="search-btn">Search</button>
+      <button class="btn btn-secondary" id="save-profile-btn" title="Save current player as a profile">Save</button>
     </div>
 
     <div class="type-filter">
