@@ -252,9 +252,24 @@ function openGameModal(game, profileId) {
 
   const saved = loadSavedReport(game.game_id);
 
+  // For AI games (empty oppTeam), resolve display players:
+  // use actual AI names from the saved report, or numbered placeholders.
+  let resolvedOppTeam = oppTeam;
+  if (oppTeam.length === 0) {
+    const aiFromSaved = saved?.gameJSON?.teams?.[1]?.players ?? [];
+    resolvedOppTeam = aiFromSaved.length > 0
+      ? aiFromSaved
+      : Array.from({ length: myTeam.length }, (_, i) => ({
+          profile_id:           `ai_placeholder_${i}`,
+          name:                 `AI ${i + 1}`,
+          civilization:         null,
+          civilization_display: 'AI',
+        }));
+  }
+
   document.getElementById('modal-content').innerHTML = saved
-    ? renderSavedReportModal(game, profileId, myTeam, oppTeam, saved.savedAt)
-    : renderGameModalContent(game, profileId, myTeam, oppTeam);
+    ? renderSavedReportModal(game, profileId, myTeam, resolvedOppTeam, saved.savedAt)
+    : renderGameModalContent(game, profileId, myTeam, resolvedOppTeam);
 
   if (saved) {
     wireSavedReportButtons(game, profileId);

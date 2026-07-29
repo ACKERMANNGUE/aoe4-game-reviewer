@@ -10,7 +10,6 @@ export function buildGameJSON(profileId, game, myTeam, oppTeam, timeline, { econ
   const dur      = game.duration;
   const mm       = Math.floor(dur / 60);
   const ss       = String(dur % 60).padStart(2, '0');
-  const teamSize = Math.max(myTeam.length, oppTeam.length, 1);
 
   const hasEco = !!economySnapshots;
   const hasMil = !!militarySnapshots;
@@ -23,26 +22,41 @@ export function buildGameJSON(profileId, game, myTeam, oppTeam, timeline, { econ
   if (!timeline.length)     noteItems.push('Build order unavailable -- run via ./run.sh');
 
   const mapPlayer = (p, isYou, colorIdx) => ({
-    profile_id:           p.profile_id,
+    profile_id:           p.profile_id ?? null,
     name:                 p.name,
     is_you:               isYou,
     color:                PLAYER_COLORS[colorIdx] ?? PLAYER_COLORS[0],
-    civilization:         p.civilization,
-    civilization_display: CIV_LABELS[p.civilization] || p.civilization,
+    civilization:         p.civilization ?? null,
+    civilization_display: CIV_LABELS[p.civilization] || p.civilization || 'AI',
     rating:               p.rating      ?? null,
     rating_diff:          p.rating_diff  ?? null,
     mmr:                  p.mmr          ?? null,
     mmr_diff:             p.mmr_diff     ?? null,
   });
 
-  const myResult  = myTeam[0]?.result  ?? null;
-  const oppResult = oppTeam[0]?.result ?? null;
+  // When oppTeam is empty (e.g. games vs AI in custom lobbies), the API does not
+  // populate the opposing team's player list. Synthesize entries from snapshot data
+  // so the exported JSON has a complete picture of all participants.
+  const resolvedOppTeam = oppTeam.length > 0 ? oppTeam : (() => {
+    const myNames = new Set(myTeam.map(p => p.name));
+    const aiNames = new Set();
+    for (const src of [economySnapshots, militarySnapshots, statistics]) {
+      if (!src) continue;
+      for (const entry of Object.values(src)) {
+        if (entry?.name && !myNames.has(entry.name)) aiNames.add(entry.name);
+      }
+    }
+    return [...aiNames].map(name => ({ name, profile_id: null, civilization: null, result: null, rating: null, rating_diff: null, mmr: null, mmr_diff: null }));
+  })();
+
+  const myResult  = myTeam[0]?.result          ?? null;
+  const oppResult = resolvedOppTeam[0]?.result ?? null;
 
   return {
     match: {
       game_id:          game.game_id,
       map:              game.map,
-      team_size:        teamSize,
+      team_size:        Math.max(myTeam.length, resolvedOppTeam.length, 1),
       duration_seconds: dur,
       duration_display: `${mm}:${ss}`,
       patch:            game.patch,
@@ -59,7 +73,7 @@ export function buildGameJSON(profileId, game, myTeam, oppTeam, timeline, { econ
       },
       {
         result:  oppResult,
-        players: oppTeam.map((p, i) => mapPlayer(p, false, myTeam.length + i)),
+        players: resolvedOppTeam.map((p, i) => mapPlayer(p, false, myTeam.length + i)),
       },
     ],
     timeline,

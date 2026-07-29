@@ -3,6 +3,7 @@
 // Requires Chart.js and marked.js loaded via CDN (window.Chart, window.marked).
 
 import { escHtml } from './utils.js';
+import { PLAYER_COLORS } from './config.js';
 
 let _charts = [];
 let _chartConfigs = [];
@@ -175,13 +176,13 @@ function destroyCharts() {
 // ─────────────────────────────────────────────
 
 function buildHTML(gameJSON) {
-  const { match, teams } = gameJSON;
+  const { match } = gameJSON;
   const hasEco = !!gameJSON.economy_snapshots;
   const hasMil = !!gameJSON.military_snapshots;
   const hasSta = !!gameJSON.statistics;
   const hasAgeEvents = !!gameJSON.timeline?.some(e => e.type === 'age');
   const hasTl  = !!gameJSON.timeline?.some(e => e.type === 'unit_produced' || e.type === 'building_completed');
-  const allPlayers = teams.flatMap(t => t.players);
+  const allPlayers = getExtendedPlayers(gameJSON);
 
   const legendHTML = allPlayers.map(p =>
     `<span class="rp-badge" style="--pc:${p.color}">
@@ -307,6 +308,38 @@ function mkChart(id, cfg) {
   _charts.push(c);
 }
 
+/**
+ * Returns all players including any AI/extra players found in snapshots
+ * that are not represented in the teams array (e.g. AI opponents in custom games).
+ */
+function getExtendedPlayers(gameJSON) {
+  const basePlayers = gameJSON.teams.flatMap(t => t.players);
+  const existingNames = new Set(basePlayers.map(p => p.name));
+
+  const extraNames = new Set();
+  for (const src of [gameJSON.economy_snapshots, gameJSON.military_snapshots, gameJSON.statistics]) {
+    if (!src) continue;
+    for (const entry of Object.values(src)) {
+      if (entry?.name && !existingNames.has(entry.name)) {
+        extraNames.add(entry.name);
+      }
+    }
+  }
+
+  const syntheticPlayers = [...extraNames].map((name, i) => ({
+    profile_id:           `ai_${name.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+    name,
+    is_you:               false,
+    color:                PLAYER_COLORS[basePlayers.length + i] ?? '#888888',
+    civilization:         null,
+    civilization_display: 'AI',
+    rating:               null,
+    mmr:                  null,
+  }));
+
+  return [...basePlayers, ...syntheticPlayers];
+}
+
 /** Find the snapshot key whose .name matches the player's name. */
 function snapshotKey(snapshots, player) {
   if (!snapshots) return null;
@@ -344,7 +377,7 @@ const UNIT_COLORS = [
 // ─────────────────────────────────────────────
 
 function renderCharts(gameJSON) {
-  const allPlayers = gameJSON.teams.flatMap(t => t.players);
+  const allPlayers = getExtendedPlayers(gameJSON);
   const eco = gameJSON.economy_snapshots;
   const mil = gameJSON.military_snapshots;
 

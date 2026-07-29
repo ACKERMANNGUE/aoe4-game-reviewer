@@ -56,10 +56,31 @@ export function renderGamesList(games, profileId, onGameClick) {
     const diffSign = delta > 0 ? '+' : '';
     const isTeam   = myTeam.length > 1 || oppTeam.length > 1;
 
-    // Civilization display: "Civ1 + Civ2" for team games
-    const myCivs  = myTeam.map(p => getCivName(p.civilization)).join(' + ');
-    const oppCivs = oppTeam.map(p => getCivName(p.civilization)).join(' + ');
-    const oppNames = oppTeam.map(p => escHtml(p.name ?? '?')).join(' + ');
+    // Civilization display: "Civ1 + Civ2" for team games; for AI games (empty oppTeam)
+    // use actual AI names from the saved report, or numbered placeholders otherwise.
+    const myCivs = myTeam.map(p => getCivName(p.civilization)).join(' + ');
+    let oppCivs, oppNames;
+    if (oppTeam.length > 0) {
+      oppCivs  = oppTeam.map(p => getCivName(p.civilization)).join(' + ');
+      oppNames = oppTeam.map(p => escHtml(p.name ?? '?')).join(' + ');
+    } else {
+      oppNames = '';
+      // Try to read actual AI names from the saved report JSON
+      const savedRaw = localStorage.getItem(`aoe4_report_${game.game_id}`);
+      if (savedRaw) {
+        try {
+          const { gameJSON } = JSON.parse(savedRaw);
+          const aiPlayers = gameJSON?.teams?.[1]?.players ?? [];
+          oppCivs = aiPlayers.length > 0
+            ? aiPlayers.map(p => escHtml(p.name)).join(' + ')
+            : Array.from({ length: myTeam.length }, (_, i) => `AI ${i + 1}`).join(' + ');
+        } catch (_) {
+          oppCivs = Array.from({ length: myTeam.length }, (_, i) => `AI ${i + 1}`).join(' + ');
+        }
+      } else {
+        oppCivs = Array.from({ length: myTeam.length }, (_, i) => `AI ${i + 1}`).join(' + ');
+      }
+    }
 
     const card = document.createElement('div');
     card.className = 'game-card';
@@ -109,7 +130,7 @@ export function renderGameModalContent(game, profileId, myTeam, oppTeam) {
 
   const allPlayers = [...myTeam, ...oppTeam];
   const playerColor = (p) =>
-    PLAYER_COLORS[allPlayers.findIndex(ap => String(ap.profile_id) === String(p.profile_id))] ?? '#888';
+    p.color ?? PLAYER_COLORS[allPlayers.findIndex(ap => String(ap.profile_id) === String(p.profile_id))] ?? '#888';
 
   // Build player rows for each side
   const teamRow = (players, right = false) => players.map(p => {
@@ -203,7 +224,7 @@ export function renderSavedReportModal(game, profileId, myTeam, oppTeam, savedAt
 
   const allPlayers = [...myTeam, ...oppTeam];
   const playerColor = (p) =>
-    PLAYER_COLORS[allPlayers.findIndex(ap => String(ap.profile_id) === String(p.profile_id))] ?? '#888';
+    p.color ?? PLAYER_COLORS[allPlayers.findIndex(ap => String(ap.profile_id) === String(p.profile_id))] ?? '#888';
 
   const teamRow = (players, right = false) => players.map(p => {
     const color = playerColor(p);
