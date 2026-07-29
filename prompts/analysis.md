@@ -4,6 +4,8 @@ You will receive structured data describing a completed Age of Empires IV match.
 
 Your task is to analyze the game from the perspective of the player identified as "{{PLAYER}}".
 
+If the match is a team game (match.team_size > 1), extend the analysis to cover the player's teammate(s) as well. Both the player and their teammate(s) should be able to learn from this review. Dedicate specific sections to the teammate's decisions, army composition, economy, and key mistakes. When addressing the teammate, use their in-game name.
+
 Do NOT simply summarize the match.
 
 Your objective is to determine:

@@ -537,17 +537,44 @@ function renderAgeTimeline(gameJSON, allPlayers) {
   });
   if (!Object.keys(agesByLabel).length) return;
 
-  // One dataset per player - thin floating bars [t-0.1, t+0.1], full-height within their category slot
+  const fmtMin = v => {
+    const m = Math.floor(v);
+    const s = Math.round((v - m) * 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
+  // Pre-build tooltip metadata: exact time + landmark name per player per age
+  const KNOWN_AGE_NAMES = new Set(['Feudal Age', 'Castle Age', 'Imperial Age']);
+  const tooltipMeta = {}; // playerName -> [{ timeStr, landmark }|null, ...]
+
+  // One dataset per player - floating bars, full-height within their category slot
   const datasets = Object.entries(agesByLabel).map(([label, events]) => {
     const player = labelToPlayer(label);
     if (!player) return null;
     const sorted = [...events].sort((a, b) => a.time - b.time);
+
+    const ttData = [];
     const data = AGE_LABELS.map((ageName, i) => {
       const hit = sorted.find(e => e.name === ageName) ?? sorted[i] ?? null;
-      if (!hit) return null;
+      if (!hit) { ttData.push(null); return null; }
       const t = hit.time / 60;
-      return [Math.max(0, t - 0.1), t + 0.1];
+      // Resolve landmark name
+      let landmark = null;
+      if (!KNOWN_AGE_NAMES.has(hit.name)) {
+        // Parser B: event name is already the landmark
+        landmark = hit.name;
+      } else {
+        // Parser A: find the closest building_completed event for this player
+        const nearby = tl
+          .filter(e => e.player === label && e.type === 'building_completed' && Math.abs(e.time - hit.time) <= 15)
+          .sort((a, b) => Math.abs(a.time - hit.time) - Math.abs(b.time - hit.time));
+        if (nearby.length) landmark = nearby[0].name;
+      }
+      ttData.push({ timeStr: fmtMin(t), landmark });
+      return [Math.max(0, t - 0.3), t + 0.3];
     });
+    tooltipMeta[player.name] = ttData;
+
     return {
       label: player.name,
       data,
@@ -555,17 +582,11 @@ function renderAgeTimeline(gameJSON, allPlayers) {
       borderColor: player.color,
       borderWidth: 1,
       barPercentage: 1.0,
-      categoryPercentage: 0.9,
+      categoryPercentage: 1.0,
     };
   }).filter(Boolean);
 
   if (!datasets.length) return;
-
-  const fmtMin = v => {
-    const m = Math.floor(v);
-    const s = Math.round((v - m) * 60);
-    return `${m}:${String(s).padStart(2, '0')}`;
-  };
 
   mkChart('rp-age-timeline', {
     type: 'bar',
@@ -574,7 +595,7 @@ function renderAgeTimeline(gameJSON, allPlayers) {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: true,
-      aspectRatio: 1.5,
+      aspectRatio: 1.3,
       interaction: { mode: 'nearest', intersect: true },
       plugins: {
         legend: { labels: { color: '#aaa', boxWidth: 12, padding: 10, font: { size: 11 } } },
@@ -586,7 +607,10 @@ function renderAgeTimeline(gameJSON, allPlayers) {
             label: ctx => {
               const val = ctx.raw;
               if (!Array.isArray(val)) return '';
-              return `${ctx.dataset.label}: ${fmtMin((val[0] + val[1]) / 2)}`;
+              const info = tooltipMeta[ctx.dataset.label]?.[ctx.dataIndex];
+              if (!info) return `${ctx.dataset.label}: ${fmtMin((val[0] + val[1]) / 2)}`;
+              const landmarkPart = info.landmark ? ` - ${info.landmark}` : '';
+              return `${ctx.dataset.label}: ${info.timeStr}${landmarkPart}`;
             },
           },
         },
@@ -635,10 +659,14 @@ function renderPieChart(canvasId, tl, playerLabel, eventType) {
   if (!document.getElementById(canvasId)) return;
 
   // Aggregate counts by entity name, exclude pure-econ units
+  // Normalise names: strip trailing tier/variant digit (e.g. "Yumi Ashigaru 2" -> "Yumi Ashigaru")
   const SKIP = new Set(['Villager', 'Scout']);
   const counts = {};
   tl.filter(e => e.player === playerLabel && e.type === eventType && !SKIP.has(e.name))
-    .forEach(e => { counts[e.name] = (counts[e.name] ?? 0) + (e.count || 1); });
+    .forEach(e => {
+      const normName = e.name.replace(/\s+\d+$/, '').trim();
+      counts[normName] = (counts[normName] ?? 0) + (e.count || 1);
+    });
 
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 14);
   if (!sorted.length) return;
