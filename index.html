@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AOE4 Game Reviewer</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Chart.js and marked.js loaded globally so report.js can use window.Chart / window.marked -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>AOE4 Game Reviewer</h1>
+    <p>Export game data for ChatGPT analysis</p>
+    <div id="cors-notice" style="display:none;margin-top:10px;font-size:.8rem;color:var(--gold);background:rgba(201,162,39,.08);border:1px solid var(--gold-dark);border-radius:6px;padding:7px 13px">
+      [!] Opened via file:// -- build order will be unavailable (CORS).
+      Fix: <code>./run.sh</code> then open <a href="http://localhost:8080" style="color:var(--gold)">http://localhost:8080</a>
+    </div>
+  </header>
+
+  <section id="search-section">
+    <div class="search-row">
+      <input
+        type="text"
+        id="player-input"
+        placeholder="Player name or Profile ID (e.g. Zonkleberg or 25679647)"
+        autofocus
+      >
+      <select id="game-limit" class="game-limit-select" title="Number of games to load">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+      </select>
+      <button class="btn" id="search-btn">Search</button>
+    </div>
+
+    <div class="type-filter">
+      <span style="color:var(--text-muted);font-size:0.82rem;align-self:center">Filter:</span>
+      <button class="type-btn active" data-type="">All</button>
+      <button class="type-btn" data-type="rm_solo">1v1 Ranked</button>
+      <button class="type-btn" data-type="rm_team">Team Ranked</button>
+      <button class="type-btn" data-type="qm_1v1">Quick Match 1v1</button>
+      <button class="type-btn" data-type="qm_2v2">Quick Match 2v2</button>
+    </div>
+
+    <div class="api-key-row">
+      <span class="api-key-label">
+        API Key
+        <span id="api-key-dot" class="api-key-dot" style="display:none"></span>
+      </span>
+      <input
+        type="password"
+        id="api-key-input"
+        class="api-key-input"
+        placeholder="AoE4World API key is optional, but required for private / custom games"
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <a
+        href="https://aoe4world.com/account"
+        target="_blank"
+        rel="noopener"
+        class="api-key-link"
+        title="Get your API key in AoE4World account settings"
+      >?</a>
+    </div>
+
+    <div id="map-filter" class="map-filter" style="display:none">
+      <span class="map-filter-label">Map:</span>
+      <div id="map-chips" class="map-chips"></div>
+    </div>
+
+    <div id="messages"></div>
+    <div id="player-info"></div>
+  </section>
+
+  <section id="games-section">
+    <h2 id="games-title">Recent games</h2>
+    <div id="games-list"></div>
+  </section>
+</div>
+
+<!-- Theme controls (fixed top-right) -->
+<div id="theme-controls">
+  <button id="theme-btn" class="theme-btn">Theme</button>
+  <div id="theme-panel" class="theme-panel hidden">
+    <div class="theme-section-label">Themes</div>
+    <div class="theme-swatches" id="theme-swatches"></div>
+    <button class="btn btn-secondary" id="random-theme-btn" style="width:100%;margin-top:12px;font-size:.82rem">
+      Random theme
+    </button>
+    <div id="theme-status"></div>
+  </div>
+</div>
+
+<!-- Conversion Modal -->
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="modal-close-btn">x</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- Report View (full-screen overlay) -->
+<div id="report-view" class="hidden"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
