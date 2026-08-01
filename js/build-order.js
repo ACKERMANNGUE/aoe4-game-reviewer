@@ -117,6 +117,9 @@ export async function extractBuildOrder(result, playerName, oppName, apiKey = ''
               console.log('[build-order] local proxy JSON OK, players:', data.players?.length, 'keys:', Object.keys(data).join(', '));
               const tl = extractTimelineFromSummaryJSON(data, playerName, oppName);
               if (tl && tl.length > 0) {
+                // Enrich with actual CDN URLs extracted from the HTML page
+                const _hmap = extractIconMapFromHTML(html);
+                for (const ev of tl) { if (ev.name && _hmap[ev.name.toLowerCase()]) ev.iconUrl = _hmap[ev.name.toLowerCase()]; }
                 return {
                   timeline:          tl,
                   method:            'summary-json',
@@ -159,6 +162,9 @@ export async function extractBuildOrder(result, playerName, oppName, apiKey = ''
         }
         const tl = extractTimelineFromSummaryJSON(data, playerName, oppName);
         if (tl && tl.length > 0) {
+          // Enrich with actual CDN URLs extracted from the HTML page
+          const _hmap = extractIconMapFromHTML(html);
+          for (const ev of tl) { if (ev.name && _hmap[ev.name.toLowerCase()]) ev.iconUrl = _hmap[ev.name.toLowerCase()]; }
           return {
             timeline:          tl,
             method:            'summary-json',
@@ -377,6 +383,8 @@ function extractTimelineFromSummaryJSON(data, playerName, oppName) {
       const name = iconToName(item.icon || '');
       if (!name) continue;
 
+      const iconUrl = iconPathToUrl(item.icon);
+
       const rawType = item.type || '';
       let type;
       let timestamps;
@@ -411,7 +419,7 @@ function extractTimelineFromSummaryJSON(data, playerName, oppName) {
 
       for (const ts of timestamps) {
         if (typeof ts === 'number') {
-          timeline.push({ time: ts, player: label, type, name, count: 1 });
+          timeline.push({ time: ts, player: label, type, name, count: 1, ...(iconUrl ? { iconUrl } : {}) });
         }
       }
     }
@@ -480,15 +488,16 @@ function parseAoE4WorldBuildOrderHTML(html, playerName, oppName) {
       const tm = timeText.match(/(\d{1,2}):(\d{2})/);
       const timeSeconds = tm ? parseInt(tm[1]) * 60 + parseInt(tm[2]) : 0;
 
+      // Get icon image element (used for both URL and name fallback)
+      const iconImg = er.querySelector('img[src*="data.aoe4world.com/images"]');
+      const iconUrl = iconImg ? (iconImg.getAttribute('src') || null) : null;
+
       // Name from span.flex-auto, fallback to img src slug
       let name = er.querySelector('span.flex-auto')?.textContent?.trim() || '';
-      if (!name) {
-        const img = er.querySelector('img[src*="data.aoe4world.com/images"]');
-        if (img) {
-          const slug = (img.getAttribute('src') || '').split('/').pop()
-            .replace(/\.[^.]+$/, '').replace(/-\d+$/, '');
-          name = iconToName(slug.replace(/-/g, '_'));
-        }
+      if (!name && iconImg) {
+        const slug = (iconImg.getAttribute('src') || '').split('/').pop()
+          .replace(/\.[^.]+$/, '').replace(/-\d+$/, '');
+        name = iconToName(slug.replace(/-/g, '_'));
       }
       if (!name) continue;
 
@@ -496,7 +505,7 @@ function parseAoE4WorldBuildOrderHTML(html, playerName, oppName) {
       const cm = er.querySelector('span.text-base')?.textContent?.match(/×\s*(\d+)/);
       const count = cm ? parseInt(cm[1]) : 1;
 
-      timeline.push({ time: timeSeconds, player: label, type, name, count });
+      timeline.push({ time: timeSeconds, player: label, type, name, count, ...(iconUrl ? { iconUrl } : {}) });
     }
   }
 
@@ -589,7 +598,7 @@ function parseImagesFromHTML(html, playerName, opponentName) {
       const countMatch = (img.parentElement?.textContent || '').match(/×\s*(\d+)/);
       const count = countMatch ? parseInt(countMatch[1]) : 1;
 
-      if (name) timeline.push({ time: lastTime, player: label, type, name, count });
+      if (name) timeline.push({ time: lastTime, player: label, type, name, count, iconUrl: src });
     }
   };
 
@@ -602,6 +611,55 @@ function parseImagesFromHTML(html, playerName, opponentName) {
 // ─────────────────────────────────────────────
 // Shared helpers
 // ─────────────────────────────────────────────
+
+/**
+ * Convert an AoE4World API icon path to a CDN image URL.
+ * e.g. "icons/races/japanese/units/unit_yumi-ashigaru-2"
+ *   → "https://data.aoe4world.com/images/units/yumi-ashigaru-2.png"
+ */
+function iconPathToUrl(iconPath) {
+  if (!iconPath) return null;
+  const parts = iconPath.split('/');
+  const CAT_MAP = { units: 'units', buildings: 'buildings', technologies: 'technologies', upgrades: 'technologies' };
+  const catIdx = parts.findIndex(p => CAT_MAP[p]);
+  if (catIdx < 0) return null;
+  const cat  = CAT_MAP[parts[catIdx]];
+  const slug = parts[parts.length - 1]
+    .replace(/^unit_/, '').replace(/^building_landmark_/, '').replace(/^building_/, '')
+    .replace(/^technology_/, '').replace(/^upgrade_/, '')
+    .replace(/_/g, '-');
+  return slug ? `https://data.aoe4world.com/images/${cat}/${slug}.png` : null;
+}
+
+/**
+ * Build a name → iconUrl map from the AoE4World build order HTML.
+ * Extracts the actual CDN image URLs straight from the \u003cimg\u003e elements.
+ * Used to enrich Parser A (JSON API) results.
+ */
+function extractIconMapFromHTML(html) {
+  if (typeof DOMParser === 'undefined') return {};
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const map = {};
+  // Method 1: CSS-class structure (same as parser B)
+  for (const er of doc.querySelectorAll('div.flex.p-1.rounded.items-center')) {
+    const imgEl = er.querySelector('img[src*="data.aoe4world.com/images"]');
+    if (!imgEl) continue;
+    const src  = imgEl.getAttribute('src');
+    if (!src) continue;
+    const name = er.querySelector('span.flex-auto')?.textContent?.trim();
+    if (name) map[name.toLowerCase()] = src;
+  }
+  // Method 2: any img with non-empty alt (fallback when CSS structure not found)
+  if (Object.keys(map).length === 0) {
+    for (const img of doc.querySelectorAll('img[src*="data.aoe4world.com/images"]')) {
+      const src = img.getAttribute('src');
+      if (!src || !/\/(units|buildings|technologies|upgrades)\//.test(src)) continue;
+      const alt = (img.getAttribute('alt') || '').trim();
+      if (alt && alt !== 'Image') map[alt.toLowerCase()] = src;
+    }
+  }
+  return map;
+}
 
 /**
  * Convert an AoE4World icon path or slug to a human-readable name.

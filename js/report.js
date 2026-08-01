@@ -19,11 +19,26 @@ export function openReport(gameJSON, markdownText) {
   view.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 
+  // Build name -> iconUrl lookup from timeline for entity icon replacement
+  const iconMap = buildIconMap(gameJSON.timeline);
+
   // Render markdown (fallback to <pre> if marked not loaded)
   const mdEl = document.getElementById('rp-md');
   if (mdEl) {
     if (window.marked) {
       let html = window.marked.parse(markdownText);
+      // Replace {{unit:Name}}, {{building:Name}}, {{tech:Name}}, {{age:Name}} with game icons
+      html = html.replace(/\{\{(unit|building|tech|age):([.\w\s''\u2019(),-]+?)\}\}/gi, (match, typePrefix, name) => {
+        const key  = name.toLowerCase().trim();
+        const attr = name.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+        const text = name.replace(/&/g, '&amp;');
+        const url  = iconMap[key]; // scraped from build order HTML via timeline
+        if (url) {
+          return `<img src="${url}" class="entity-icon-inline" alt="${attr}" title="${attr}" `
+            + `onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'entity-badge',title:this.alt,textContent:this.alt}))">` ;
+        }
+        return `<span class="entity-badge" title="${attr}">${text}</span>`;
+      });
       // Replace {{civ_key}} tokens with inline flag images
       html = html.replace(/\{\{([a-z_]+)\}\}/g, (_, key) => {
         const flagPath = getCivFlag(key);
@@ -88,7 +103,7 @@ async function exportHTML(gameJSON) {
     const clone = body.cloneNode(true);
 
     // 1b. Inline flag images as base64 so the export is fully self-contained
-    const flagImgs = [...clone.querySelectorAll('img.civ-flag, img.civ-flag-inline')];
+    const flagImgs = [...clone.querySelectorAll('img.civ-flag, img.civ-flag-inline, img.entity-icon-inline')];
     const uniqueSrcs = [...new Set(flagImgs.map(img => img.src))];
     const dataUriMap = {};
     await Promise.all(uniqueSrcs.map(async (src) => {
@@ -345,6 +360,21 @@ function mkChart(id, cfg) {
   _chartConfigs.push({ id, cfg });
   const c = new window.Chart(el, cfg);
   _charts.push(c);
+}
+
+/**
+ * Build a name → iconUrl map from the timeline for entity icon replacement in markdown.
+ * Keys are lowercased entity names; values are absolute image URLs scraped from the build order page.
+ */
+function buildIconMap(timeline) {
+  const map = {};
+  for (const event of (timeline || [])) {
+    if (event.name && event.iconUrl) {
+      const key = event.name.toLowerCase();
+      if (!map[key]) map[key] = event.iconUrl;
+    }
+  }
+  return map;
 }
 
 /**
