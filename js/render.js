@@ -1,4 +1,4 @@
-import { getCivName, getLBName, fmtDate, fmtDuration, escHtml, splitTeams } from './utils.js';
+import { getCivName, getCivFlag, getLBName, fmtDate, fmtDuration, escHtml, splitTeams } from './utils.js';
 import { PLAYER_COLORS } from './config.js';
 
 // ─────────────────────────────────────────────
@@ -134,14 +134,21 @@ export function renderGameModalContent(game, profileId, myTeam, oppTeam) {
 
   // Build player rows for each side
   const teamRow = (players, right = false) => players.map(p => {
-    const color = playerColor(p);
+    const color   = playerColor(p);
+    const flag    = getCivFlag(p.civilization);
+    const civName = getCivName(p.civilization);
+    const flagHtml = flag
+      ? `<img src="${flag}" class="civ-flag" alt="${civName}" title="${civName}">`
+      : '';
     return `
       <div>
         <div class="name" style="display:flex;align-items:center;gap:6px;${right ? 'flex-direction:row-reverse;' : ''}">
           <span class="player-color-dot" style="background:${color}"></span>
           <span>${escHtml(p.name ?? '?')}</span>
         </div>
-        <div class="civ" style="${right ? 'text-align:right' : ''}">${getCivName(p.civilization)}</div>
+        <div class="civ" style="display:flex;align-items:center;gap:5px;${right ? 'flex-direction:row-reverse;' : ''}">
+          ${flagHtml}<span>${civName}</span>
+        </div>
       </div>
     `;
   }).join('');
@@ -227,14 +234,21 @@ export function renderSavedReportModal(game, profileId, myTeam, oppTeam, savedAt
     p.color ?? PLAYER_COLORS[allPlayers.findIndex(ap => String(ap.profile_id) === String(p.profile_id))] ?? '#888';
 
   const teamRow = (players, right = false) => players.map(p => {
-    const color = playerColor(p);
+    const color   = playerColor(p);
+    const flag    = getCivFlag(p.civilization);
+    const civName = getCivName(p.civilization);
+    const flagHtml = flag
+      ? `<img src="${flag}" class="civ-flag" alt="${civName}" title="${civName}">`
+      : '';
     return `
       <div>
         <div class="name" style="display:flex;align-items:center;gap:6px;${right ? 'flex-direction:row-reverse;' : ''}">
           <span class="player-color-dot" style="background:${color}"></span>
           <span>${escHtml(p.name ?? '?')}</span>
         </div>
-        <div class="civ" style="${right ? 'text-align:right' : ''}">${getCivName(p.civilization)}</div>
+        <div class="civ" style="display:flex;align-items:center;gap:5px;${right ? 'flex-direction:row-reverse;' : ''}">
+          ${flagHtml}<span>${civName}</span>
+        </div>
       </div>
     `;
   }).join('');

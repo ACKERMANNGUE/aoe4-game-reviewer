@@ -1,4 +1,4 @@
-import { CIV_LABELS, LEADERBOARD_LABELS } from './config.js';
+import { CIV_LABELS, LEADERBOARD_LABELS, CIV_FLAGS } from './config.js';
 
 // ─────────────────────────────────────────────
 // Formatting
@@ -18,6 +18,15 @@ export function fmtDate(iso) {
 
 export function getCivName(civ) {
   return CIV_LABELS[civ] || (civ || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/**
+ * Returns the path to the flag image for a given civilization key, or null.
+ */
+export function getCivFlag(civ) {
+  if (!civ) return null;
+  const file = CIV_FLAGS[civ];
+  return file ? `flags/${file}` : null;
 }
 
 export function getLBName(lb) {

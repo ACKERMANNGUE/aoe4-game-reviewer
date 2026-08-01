@@ -58,3 +58,32 @@ export const LEADERBOARD_LABELS = {
   qm_1v1:  '1v1 Quick Match',
   qm_2v2:  '2v2 Quick Match',
 };
+
+/**
+ * Maps civilization API keys to their flag image filenames in the /flags/ folder.
+ */
+export const CIV_FLAGS = {
+  abbasid_dynasty:     'abbasid.png',
+  ayyubids:            'ayyubids.png',
+  byzantines:          'byzantines.png',
+  chinese:             'chinese.png',
+  delhi_sultanate:     'delhi_sultanate.png',
+  english:             'english.png',
+  french:              'french.png',
+  golden_horde:        'golden_horde.png',
+  holy_roman_empire:   'hre.png',
+  house_of_lancaster:  'house_of_lancaster.png',
+  japanese:            'Japanese.png',
+  jeanne_darc:         'jeanne_d_arc.png',
+  jin_dynasty:         'jin_dynasty.png',
+  knight_templar:      'knight_templar.png',
+  macedonian_dynasty:  'macedonian_dynasty.png',
+  malians:             'Malians.png',
+  mongols:             'mongols.png',
+  order_of_the_dragon: 'ootd.png',
+  ottomans:            'ottomans.png',
+  rus:                 'rus.png',
+  sengoku:             'sengoku_daimyo.png',
+  tughlaq_dynasty:     'tughlaq_dynasty.png',
+  zhu_xi_legacy:       'zhu_xis_legacy.png',
+};

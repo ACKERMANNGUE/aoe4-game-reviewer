@@ -541,6 +541,40 @@ header p {
 .vs-player .civ  { font-size: 0.82rem; color: var(--text-muted); }
 .vs-sep  { color: var(--text-muted); font-size: 0.85rem; flex-shrink: 0; }
 
+/* Civilization flag images */
+.civ-flag {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.civ-flag-inline {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin: 0 2px;
+}
+
+/* Civilization flag images */
+.civ-flag {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.civ-flag-inline {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin: 0 2px;
+}
+
 .player-color-dot {
   display: inline-block;
   width: 9px;

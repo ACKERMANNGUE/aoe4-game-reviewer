@@ -2,7 +2,7 @@
 // Renders the in-app analysis report: Markdown + interactive Chart.js charts.
 // Requires Chart.js and marked.js loaded via CDN (window.Chart, window.marked).
 
-import { escHtml } from './utils.js';
+import { escHtml, getCivFlag } from './utils.js';
 import { PLAYER_COLORS } from './config.js';
 
 let _charts = [];
@@ -22,9 +22,19 @@ export function openReport(gameJSON, markdownText) {
   // Render markdown (fallback to <pre> if marked not loaded)
   const mdEl = document.getElementById('rp-md');
   if (mdEl) {
-    mdEl.innerHTML = window.marked
-      ? window.marked.parse(markdownText)
-      : `<pre>${escHtml(markdownText)}</pre>`;
+    if (window.marked) {
+      let html = window.marked.parse(markdownText);
+      // Replace {{civ_key}} tokens with inline flag images
+      html = html.replace(/\{\{([a-z_]+)\}\}/g, (_, key) => {
+        const flagPath = getCivFlag(key);
+        return flagPath
+          ? `<img src="${flagPath}" class="civ-flag-inline" alt="${key}" title="${key}">`
+          : `{{${key}}}`;
+      });
+      mdEl.innerHTML = html;
+    } else {
+      mdEl.innerHTML = `<pre>${escHtml(markdownText)}</pre>`;
+    }
   }
 
   document.getElementById('rp-close').addEventListener('click', closeReport);
@@ -54,6 +64,18 @@ export function closeReport() {
 // HTML export
 // ─────────────────────────────────────────────
 
+/** Fetch an image URL and return it as a base64 data URI. */
+async function imgToDataUri(src) {
+  const resp = await fetch(src);
+  const blob = await resp.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function exportHTML(gameJSON) {
   const btn = document.getElementById('rp-save-html');
   const origText = btn.textContent;
@@ -64,6 +86,15 @@ async function exportHTML(gameJSON) {
     // 1. Clone the report body – canvases stay empty, Chart.js will fill them
     const body = document.querySelector('#report-view .rp-body');
     const clone = body.cloneNode(true);
+
+    // 1b. Inline flag images as base64 so the export is fully self-contained
+    const flagImgs = [...clone.querySelectorAll('img.civ-flag, img.civ-flag-inline')];
+    const uniqueSrcs = [...new Set(flagImgs.map(img => img.src))];
+    const dataUriMap = {};
+    await Promise.all(uniqueSrcs.map(async (src) => {
+      try { dataUriMap[src] = await imgToDataUri(src); } catch (_) { /* best-effort */ }
+    }));
+    flagImgs.forEach(img => { if (dataUriMap[img.src]) img.src = dataUriMap[img.src]; });
 
     // 2. Snapshot the active theme variables from :root so the exported file
     //    keeps the exact colours the user had at export time.
@@ -184,14 +215,18 @@ function buildHTML(gameJSON) {
   const hasTl  = !!gameJSON.timeline?.some(e => e.type === 'unit_produced' || e.type === 'building_completed');
   const allPlayers = getExtendedPlayers(gameJSON);
 
-  const legendHTML = allPlayers.map(p =>
-    `<span class="rp-badge" style="--pc:${p.color}">
+  const legendHTML = allPlayers.map(p => {
+    const flag    = getCivFlag(p.civilization);
+    const civHtml = flag
+      ? `<img src="${flag}" class="civ-flag" alt="${escHtml(p.civilization_display)}" title="${escHtml(p.civilization_display)}">`
+      : `<span class="rp-badge-civ">${escHtml(p.civilization_display)}</span>`;
+    return `<span class="rp-badge" style="--pc:${p.color}">
       <span class="rp-dot" style="background:${p.color}"></span>
       <strong>${escHtml(p.name)}</strong>
-      <span class="rp-badge-civ">${escHtml(p.civilization_display)}</span>
+      ${civHtml}
       ${p.is_you ? '<span class="rp-you-tag">You</span>' : ''}
-    </span>`
-  ).join('');
+    </span>`;
+  }).join('');
 
   // ── Row 1: Economy + Military (2 cols) ──
   const row1 = [
@@ -256,12 +291,16 @@ function buildHTML(gameJSON) {
     ].filter(Boolean).join('');
 
     if (!cards) return '';
+    const civFlag = getCivFlag(p.civilization);
+    const civHtml = civFlag
+      ? `<img src="${civFlag}" class="civ-flag" alt="${escHtml(p.civilization_display)}" title="${escHtml(p.civilization_display)}">`
+      : `<span class="rp-badge-civ">${escHtml(p.civilization_display)}</span>`;
     return `
       <div class="rp-player-block">
         <div class="rp-player-header">
           <span class="rp-dot" style="background:${p.color}"></span>
           <strong>${escHtml(p.name)}</strong>
-          <span class="rp-badge-civ">${escHtml(p.civilization_display)}</span>
+          ${civHtml}
           ${p.is_you ? '<span class="rp-you-tag">You</span>' : ''}
         </div>
         <div class="rp-charts-row">${cards}</div>
