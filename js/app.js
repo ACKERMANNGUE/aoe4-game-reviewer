@@ -280,7 +280,7 @@ function openGameModal(game, profileId) {
 
   openModal();
 
-  // Fetch profiles and patch only the vs-row player columns — does not touch the rest of the modal
+  // Fetch profiles and patch only the vs-row player columns - does not touch the rest of the modal
   const realPlayers = [...myTeam, ...resolvedOppTeam].filter(p => !String(p.profile_id).startsWith('ai_'));
   const playerProfiles = {};
   Promise.all(

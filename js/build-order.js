@@ -383,7 +383,7 @@ function extractTimelineFromSummaryJSON(data, playerName, oppName) {
       const name = iconToName(item.icon || '');
       if (!name) continue;
 
-      const iconUrl = iconPathToUrl(item.icon);
+      const iconUrl = iconPathToUrl(item.icon, item.type);
 
       const rawType = item.type || '';
       let type;
@@ -616,18 +616,77 @@ function parseImagesFromHTML(html, playerName, opponentName) {
  * Convert an AoE4World API icon path to a CDN image URL.
  * e.g. "icons/races/japanese/units/unit_yumi-ashigaru-2"
  *   → "https://data.aoe4world.com/images/units/yumi-ashigaru-2.png"
+ *
+ * typeHint: 'Unit' | 'Building' | 'Technology' | 'Upgrade' - from item.type in Parser A.
+ * Overrides the path-derived category for unit and building items.
+ *
+ * Unit-tier upgrades (e.g. spearman-2) live under technologies/ in the icon path
+ * but the CDN stores them under units/ - detected by slug ending in -1/-2/-3.
  */
-function iconPathToUrl(iconPath) {
+function iconPathToUrl(iconPath, typeHint = null) {
   if (!iconPath) return null;
   const parts = iconPath.split('/');
   const CAT_MAP = { units: 'units', buildings: 'buildings', technologies: 'technologies', upgrades: 'technologies' };
   const catIdx = parts.findIndex(p => CAT_MAP[p]);
   if (catIdx < 0) return null;
-  const cat  = CAT_MAP[parts[catIdx]];
-  const slug = parts[parts.length - 1]
+  let cat = CAT_MAP[parts[catIdx]];
+
+  let slug = parts[parts.length - 1]
     .replace(/^unit_/, '').replace(/^building_landmark_/, '').replace(/^building_/, '')
     .replace(/^technology_/, '').replace(/^upgrade_/, '')
     .replace(/_/g, '-');
+
+  // CDN uses different slugs for some units/buildings
+  const SLUG_ALIASES = {
+    // Units whose internal API name differs from the CDN filename
+    'ram':               'battering-ram-3',
+    'siege-tower':       'siege-tower-1',
+    'mangonel':          'mangonel-2',
+    'springald':         'springald-2',
+    'trebuchet':         'trebuchet-1',
+    'culverin':          'culverin-2',
+    'ribauldequin':      'ribauldequin-2',
+    'bombard':           'bombard-2',
+    'cannon':            'cannon-2',
+    // Buildings whose CDN filename requires a tier suffix
+    'fortified-outpost': 'fortified-outpost-1',
+    'palisade-wall':     'palisade-wall-1',
+    'stone-wall':        'stone-wall-1',
+    'palisade-gate':     'palisade-gate-1',
+    'stone-wall-gate':   'stone-wall-gate-1',
+    'outpost':           'outpost-1',
+    'farm':              'farm-1',
+    'mill':              'mill-1',
+    'lumber-camp':       'lumber-camp-1',
+    'mining-camp':       'mining-camp-1',
+    'dock':              'dock-1',
+    'market':            'market-1',
+    'blacksmith':        'blacksmith-1',
+    'university':        'university-1',
+    'monastery':         'monastery-1',
+    'archery-range':     'archery-range-1',
+    'barracks':          'barracks-1',
+    'stable':            'stable-1',
+    'siege-workshop':    'siege-workshop-1',
+  };
+  slug = SLUG_ALIASES[slug] ?? slug;
+
+  // Civ-specific slug overrides (same archetype, different CDN filename per civ)
+  const civ = catIdx > 0 ? parts[catIdx - 1] : null;
+  const CIV_SLUG_ALIASES = {
+    'french/lancer':   'royal-knight-2',
+    'french/lancer-2': 'royal-knight-3',
+  };
+  const civSlugKey = civ ? `${civ}/${slug}` : null;
+  slug = (civSlugKey && CIV_SLUG_ALIASES[civSlugKey]) ?? slug;
+
+  // Unit-tier upgrade icons (slug ends in -1/-2/-3 under technologies/) belong to units/
+  if (cat === 'technologies' && /-[123]$/.test(slug)) cat = 'units';
+
+  // Explicit type overrides take priority
+  if (typeHint === 'Unit')     cat = 'units';
+  if (typeHint === 'Building') cat = 'buildings';
+
   return slug ? `https://data.aoe4world.com/images/${cat}/${slug}.png` : null;
 }
 
@@ -674,8 +733,21 @@ export function iconToName(iconPath) {
     age_display_persistent_3: 'Castle Age',
     age_display_persistent_4: 'Imperial Age',
   };
-  const slug = iconPath.split('/').pop();
+  const parts = iconPath.split('/');
+  const slug = parts[parts.length - 1];
   if (AGES[slug]) return AGES[slug];
+
+  // Civ-specific display name overrides (archetype slug ≠ in-game unit name)
+  const CIV_UNIT_NAMES = {
+    'french/unit_lancer':   'Royal Knight',
+    'french/unit_lancer-2': 'Royal Knight',
+    'french/unit_lancer-3': 'Royal Knight',
+  };
+  const catIdx = parts.findIndex(p => ['units', 'buildings', 'technologies', 'upgrades'].includes(p));
+  const civ = catIdx > 0 ? parts[catIdx - 1] : null;
+  const civUnitKey = civ ? `${civ}/${slug}` : null;
+  if (civUnitKey && CIV_UNIT_NAMES[civUnitKey]) return CIV_UNIT_NAMES[civUnitKey];
+
   return slug
     .replace(/^building_landmark_/, '')
     .replace(/^building_/, '')

@@ -172,7 +172,7 @@ export function buildTeamRowsHTML(players, allPlayers, playerProfiles, right = f
       ? `<img src="${rankIcon}" class="rank-icon-sm" alt="${rankTitle}" title="${rankTitle}">`
       : '';
 
-    // left: [avatar] [dot] [name] [rank] — right: same HTML, reversed by flex-direction
+    // left: [avatar] [dot] [name] [rank] - right: same HTML, reversed by flex-direction
     return `
       <div>
         <div class="name" style="display:flex;align-items:center;gap:6px;${right ? 'flex-direction:row-reverse;' : ''}">
