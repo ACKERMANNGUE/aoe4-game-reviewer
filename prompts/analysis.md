@@ -311,8 +311,6 @@ Examples:
 - "La recherche {{tech:Wheelbarrow}} était prématurée dans ce contexte..."
 - "Il est passé en {{age:Feudal Age}} à 5:22, soit 40 secondes avant l'adversaire."
 
-Only annotate the **first occurrence** of each entity name in a section. Do not repeat the annotation on every mention.
-
 IMPORTANT RULES
 
 - Be direct and critical.

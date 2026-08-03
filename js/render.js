@@ -178,7 +178,7 @@ export function buildTeamRowsHTML(players, allPlayers, playerProfiles, right = f
         <div class="name" style="display:flex;align-items:center;gap:6px;${right ? 'flex-direction:row-reverse;' : ''}">
           ${avatarHtml}
           <span class="player-color-dot" style="background:${color}"></span>
-          <span>${escHtml(p.name ?? '?')}</span>
+          <a class="player-name-link" href="https://aoe4world.com/players/${p.profile_id}" target="_blank" rel="noopener">${escHtml(p.name ?? '?')}</a>
           ${rankHtml}
         </div>
         <div class="civ" style="display:flex;align-items:center;gap:5px;${right ? 'flex-direction:row-reverse;' : ''}">
