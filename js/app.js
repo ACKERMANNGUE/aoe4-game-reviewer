@@ -1,4 +1,4 @@
-import { searchPlayer, getGames, getGameDetail } from './api.js';
+import { searchPlayer, getGames, getGameDetail, getPlayerById } from './api.js';
 import { THEMES, applyTheme, applyThemeById, restoreTheme, fetchRandomPalette, applyRawPalette } from './theme.js';
 import { fetchSummaryHTML, extractBuildOrder } from './build-order.js';
 import { buildGameJSON } from './exporter.js';
@@ -8,7 +8,7 @@ import { splitTeams, showMessage, clearMessage, downloadJSON, escHtml, getLBName
 import {
   renderPlayerInfo, hidePlayerInfo,
   renderGamesList, hideGames,
-  renderGameModalContent, renderSavedReportModal, openModal, closeModal,
+  renderGameModalContent, renderSavedReportModal, buildTeamRowsHTML, openModal, closeModal,
   renderConversionSteps, setStep, renderConversionResult,
 } from './render.js';
 
@@ -267,9 +267,10 @@ function openGameModal(game, profileId) {
         }));
   }
 
+  // Open modal immediately with no profile data
   document.getElementById('modal-content').innerHTML = saved
-    ? renderSavedReportModal(game, profileId, myTeam, resolvedOppTeam, saved.savedAt)
-    : renderGameModalContent(game, profileId, myTeam, resolvedOppTeam);
+    ? renderSavedReportModal(game, profileId, myTeam, resolvedOppTeam, saved.savedAt, {})
+    : renderGameModalContent(game, profileId, myTeam, resolvedOppTeam, {});
 
   if (saved) {
     wireSavedReportButtons(game, profileId);
@@ -278,6 +279,22 @@ function openGameModal(game, profileId) {
   }
 
   openModal();
+
+  // Fetch profiles and patch only the vs-row player columns — does not touch the rest of the modal
+  const realPlayers = [...myTeam, ...resolvedOppTeam].filter(p => !String(p.profile_id).startsWith('ai_'));
+  const playerProfiles = {};
+  Promise.all(
+    realPlayers.map(p =>
+      getPlayerById(p.profile_id)
+        .then(data => { playerProfiles[String(p.profile_id)] = data; })
+        .catch(() => {})
+    )
+  ).then(() => {
+    const leftEl  = document.getElementById('vs-left');
+    const rightEl = document.getElementById('vs-right');
+    if (leftEl)  leftEl.innerHTML  = buildTeamRowsHTML(myTeam,          [...myTeam, ...resolvedOppTeam], playerProfiles, false);
+    if (rightEl) rightEl.innerHTML = buildTeamRowsHTML(resolvedOppTeam, [...myTeam, ...resolvedOppTeam], playerProfiles, true);
+  });
 }
 
 function handleOverlayClick(e) {

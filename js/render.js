@@ -1,4 +1,4 @@
-import { getCivName, getCivFlag, getLBName, fmtDate, fmtDuration, escHtml, splitTeams } from './utils.js';
+import { getCivName, getCivFlag, getRankIcon, getLBName, fmtDate, fmtDuration, escHtml, splitTeams } from './utils.js';
 import { PLAYER_COLORS } from './config.js';
 
 // ─────────────────────────────────────────────
@@ -6,16 +6,36 @@ import { PLAYER_COLORS } from './config.js';
 // ─────────────────────────────────────────────
 
 export function renderPlayerInfo(p) {
-  const rating = p.modes?.rm_solo?.rating   ?? p.leaderboards?.rm_solo?.rating   ?? '--';
-  const rank   = p.modes?.rm_solo?.rank     ?? p.leaderboards?.rm_solo?.rank     ?? '--';
-  const wr     = p.modes?.rm_solo?.win_rate ?? p.leaderboards?.rm_solo?.win_rate ?? '--';
-  const level  = p.modes?.rm_solo?.rank_level ?? p.leaderboards?.rm_solo?.rank_level ?? '';
-  const levelDisplay = level
-    ? level.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  const lb = p.modes ?? p.leaderboards ?? {};
+
+  const soloData = lb.rm_solo;
+  const teamData = lb.rm_team;
+
+  // Use solo stats for the meta line; fall back to team if solo absent
+  const primary  = soloData ?? teamData;
+  const rating   = primary?.rating  ?? '--';
+  const rank     = primary?.rank    ?? '--';
+  const wr       = primary?.win_rate ?? '--';
+
+  const rankBadge = (data, label) => {
+    if (!data?.rank_level) return '';
+    const lvlDisplay = fmtRankLevel(data.rank_level);
+    const icon = getRankIcon(data.rank_level);
+    const iconHtml = icon ? `<img src="${icon}" class="rank-icon" alt="${lvlDisplay}">` : '';
+    return `<div class="rank-badge">
+      ${iconHtml}
+      <span class="rank-badge-label">${label} ${lvlDisplay}</span>
+    </div>`;
+  };
+
+  const avatar = p.avatars?.medium ?? p.avatars?.large ?? null;
+  const avatarHtml = avatar
+    ? `<img src="${escHtml(avatar)}" class="player-avatar-lg" alt="${escHtml(p.name ?? '')}">`
     : '';
 
   const el = document.getElementById('player-info');
   el.innerHTML = `
+    ${avatarHtml}
     <div style="flex:1">
       <div class="player-name-big">${escHtml(p.name)}</div>
       <div class="player-meta">
@@ -23,7 +43,10 @@ export function renderPlayerInfo(p) {
         ${p.country ? `- ${p.country.toUpperCase()}` : ''}
       </div>
     </div>
-    ${levelDisplay ? `<div class="rank-badge">${levelDisplay}</div>` : ''}
+    <div class="rank-badges">
+      ${rankBadge(soloData, 'Solo')}
+      ${rankBadge(teamData, 'Team')}
+    </div>
   `;
   el.classList.add('visible');
 }
@@ -117,34 +140,43 @@ export function hideGames() {
 // Modal
 // ─────────────────────────────────────────────
 
-/**
- * Render the initial modal content (game details + convert button).
- * Returns the HTML string; caller is responsible for wiring the convert button.
- */
-export function renderGameModalContent(game, profileId, myTeam, oppTeam) {
-  const me    = myTeam.find(p => String(p.profile_id) === String(profileId)) || myTeam[0];
-  const isWin = me?.result === 'win';
-  const dur   = fmtDuration(game.duration);
-  const date  = fmtDate(game.started_at);
-  const delta = me?.mmr_diff ?? me?.rating_diff ?? 0;
+function fmtRankLevel(rankLevel) {
+  return rankLevel ? rankLevel.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
+}
 
-  const allPlayers = [...myTeam, ...oppTeam];
+export function buildTeamRowsHTML(players, allPlayers, playerProfiles, right = false) {
   const playerColor = (p) =>
     p.color ?? PLAYER_COLORS[allPlayers.findIndex(ap => String(ap.profile_id) === String(p.profile_id))] ?? '#888';
 
-  // Build player rows for each side
-  const teamRow = (players, right = false) => players.map(p => {
-    const color   = playerColor(p);
-    const flag    = getCivFlag(p.civilization);
-    const civName = getCivName(p.civilization);
+  return players.map(p => {
+    const color    = playerColor(p);
+    const flag     = getCivFlag(p.civilization);
+    const civName  = getCivName(p.civilization);
     const flagHtml = flag
       ? `<img src="${flag}" class="civ-flag" alt="${civName}" title="${civName}">`
       : '';
+
+    const profile   = playerProfiles[String(p.profile_id)];
+    const avatar    = profile?.avatars?.small ?? null;
+    const rankLevel = profile?.modes?.rm_solo?.rank_level ?? profile?.modes?.rm_team?.rank_level ?? null;
+    const rankIcon  = getRankIcon(rankLevel);
+    const rankTitle = fmtRankLevel(rankLevel);
+
+    const avatarHtml = avatar
+      ? `<img src="${escHtml(avatar)}" class="player-avatar" alt="${escHtml(p.name ?? '')}">`
+      : '';
+    const rankHtml = rankIcon
+      ? `<img src="${rankIcon}" class="rank-icon-sm" alt="${rankTitle}" title="${rankTitle}">`
+      : '';
+
+    // left: [avatar] [dot] [name] [rank] — right: same HTML, reversed by flex-direction
     return `
       <div>
         <div class="name" style="display:flex;align-items:center;gap:6px;${right ? 'flex-direction:row-reverse;' : ''}">
+          ${avatarHtml}
           <span class="player-color-dot" style="background:${color}"></span>
           <span>${escHtml(p.name ?? '?')}</span>
+          ${rankHtml}
         </div>
         <div class="civ" style="display:flex;align-items:center;gap:5px;${right ? 'flex-direction:row-reverse;' : ''}">
           ${flagHtml}<span>${civName}</span>
@@ -152,6 +184,21 @@ export function renderGameModalContent(game, profileId, myTeam, oppTeam) {
       </div>
     `;
   }).join('');
+}
+
+/**
+ * Render the initial modal content (game details + convert button).
+ * Returns the HTML string; caller is responsible for wiring the convert button.
+ */
+export function renderGameModalContent(game, profileId, myTeam, oppTeam, playerProfiles = {}) {
+  const me    = myTeam.find(p => String(p.profile_id) === String(profileId)) || myTeam[0];
+  const isWin = me?.result === 'win';
+  const dur   = fmtDuration(game.duration);
+  const date  = fmtDate(game.started_at);
+  const delta = me?.mmr_diff ?? me?.rating_diff ?? 0;
+
+  const allPlayers = [...myTeam, ...oppTeam];
+  const teamRow = (players, right = false) => buildTeamRowsHTML(players, allPlayers, playerProfiles, right);
 
   return `
     <div class="modal-header">
@@ -163,9 +210,9 @@ export function renderGameModalContent(game, profileId, myTeam, oppTeam) {
     </div>
 
     <div class="vs-row">
-      <div class="vs-player">${teamRow(myTeam)}</div>
+      <div class="vs-player" id="vs-left">${teamRow(myTeam)}</div>
       <div class="vs-sep">vs</div>
-      <div class="vs-player">${teamRow(oppTeam, true)}</div>
+      <div class="vs-player" id="vs-right">${teamRow(oppTeam, true)}</div>
     </div>
 
     <div class="match-detail-grid">
@@ -222,7 +269,7 @@ export function renderGameModalContent(game, profileId, myTeam, oppTeam) {
 }
 
 /** Render the modal for a game that already has a saved report. */
-export function renderSavedReportModal(game, profileId, myTeam, oppTeam, savedAt) {
+export function renderSavedReportModal(game, profileId, myTeam, oppTeam, savedAt, playerProfiles = {}) {
   const me    = myTeam.find(p => String(p.profile_id) === String(profileId)) || myTeam[0];
   const isWin = me?.result === 'win';
   const dur   = fmtDuration(game.duration);
@@ -230,28 +277,7 @@ export function renderSavedReportModal(game, profileId, myTeam, oppTeam, savedAt
   const delta = me?.mmr_diff ?? me?.rating_diff ?? 0;
 
   const allPlayers = [...myTeam, ...oppTeam];
-  const playerColor = (p) =>
-    p.color ?? PLAYER_COLORS[allPlayers.findIndex(ap => String(ap.profile_id) === String(p.profile_id))] ?? '#888';
-
-  const teamRow = (players, right = false) => players.map(p => {
-    const color   = playerColor(p);
-    const flag    = getCivFlag(p.civilization);
-    const civName = getCivName(p.civilization);
-    const flagHtml = flag
-      ? `<img src="${flag}" class="civ-flag" alt="${civName}" title="${civName}">`
-      : '';
-    return `
-      <div>
-        <div class="name" style="display:flex;align-items:center;gap:6px;${right ? 'flex-direction:row-reverse;' : ''}">
-          <span class="player-color-dot" style="background:${color}"></span>
-          <span>${escHtml(p.name ?? '?')}</span>
-        </div>
-        <div class="civ" style="display:flex;align-items:center;gap:5px;${right ? 'flex-direction:row-reverse;' : ''}">
-          ${flagHtml}<span>${civName}</span>
-        </div>
-      </div>
-    `;
-  }).join('');
+  const teamRow = (players, right = false) => buildTeamRowsHTML(players, allPlayers, playerProfiles, right);
 
   const savedDate = new Date(savedAt).toLocaleString(undefined, {
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -268,9 +294,9 @@ export function renderSavedReportModal(game, profileId, myTeam, oppTeam, savedAt
     </div>
 
     <div class="vs-row">
-      <div class="vs-player">${teamRow(myTeam)}</div>
+      <div class="vs-player" id="vs-left">${teamRow(myTeam)}</div>
       <div class="vs-sep">vs</div>
-      <div class="vs-player">${teamRow(oppTeam, true)}</div>
+      <div class="vs-player" id="vs-right">${teamRow(oppTeam, true)}</div>
     </div>
 
     <div class="match-detail-grid">

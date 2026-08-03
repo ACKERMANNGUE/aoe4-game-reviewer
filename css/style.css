@@ -343,9 +343,50 @@ header p {
   color: var(--gold);
   font-size: 0.8rem;
   font-weight: 600;
-  padding: 3px 10px;
-  margin-left: auto;
+  padding: 3px 8px;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.rank-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.rank-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.rank-icon-sm {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.player-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 15%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.player-avatar-lg {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
 }
 
 /* ──── Messages ──── */
@@ -558,21 +599,27 @@ header p {
   margin: 0 2px;
 }
 
-/* Civilization flag images */
-.civ-flag {
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-.civ-flag-inline {
-  width: 16px;
-  height: 16px;
+/* Entity icons (units, buildings, technologies) in markdown report */
+.entity-icon-inline {
+  width: 20px;
+  height: 20px;
   object-fit: contain;
   border-radius: 2px;
   vertical-align: middle;
   margin: 0 2px;
+}
+/* Fallback badge when no icon URL is available */
+.entity-badge {
+  display: inline-block;
+  background: rgba(201, 162, 39, 0.12);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 3px;
+  padding: 0 5px;
+  font-size: 0.82em;
+  color: var(--gold);
+  vertical-align: middle;
+  margin: 0 2px;
+  white-space: nowrap;
 }
 
 .player-color-dot {
