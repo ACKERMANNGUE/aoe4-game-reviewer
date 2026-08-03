@@ -2,8 +2,9 @@
 // Renders the in-app analysis report: Markdown + interactive Chart.js charts.
 // Requires Chart.js and marked.js loaded via CDN (window.Chart, window.marked).
 
-import { escHtml, getCivFlag } from './utils.js';
+import { escHtml, getCivFlag, getRankIcon } from './utils.js';
 import { PLAYER_COLORS } from './config.js';
+import { getPlayerById } from './api.js';
 
 let _charts = [];
 let _chartConfigs = [];
@@ -19,6 +20,26 @@ export function openReport(gameJSON, markdownText) {
   view.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 
+  // Fetch profiles in background and patch the legend with avatar + rank
+  const preferTeam = gameJSON.match?.leaderboard === 'rm_team';
+  const allPlayers = getExtendedPlayers(gameJSON);
+  const profiles = {};
+  Promise.all(
+    allPlayers
+      .filter(p => p.profile_id && !String(p.profile_id).startsWith('ai_'))
+      .map(p =>
+        getPlayerById(p.profile_id)
+          .then(data => { profiles[String(p.profile_id)] = data; })
+          .catch(() => {})
+      )
+  ).then(() => {
+    const legendEl = document.getElementById('rp-legend');
+    if (legendEl) {
+      legendEl.innerHTML = allPlayers
+        .map(p => buildLegendBadge(p, profiles[String(p.profile_id)], preferTeam))
+        .join('');
+    }
+  });
   // Build name -> iconUrl lookup from timeline for entity icon replacement
   const iconMap = buildIconMap(gameJSON.timeline);
 
@@ -230,18 +251,7 @@ function buildHTML(gameJSON) {
   const hasTl  = !!gameJSON.timeline?.some(e => e.type === 'unit_produced' || e.type === 'building_completed');
   const allPlayers = getExtendedPlayers(gameJSON);
 
-  const legendHTML = allPlayers.map(p => {
-    const flag    = getCivFlag(p.civilization);
-    const civHtml = flag
-      ? `<img src="${flag}" class="civ-flag" alt="${escHtml(p.civilization_display)}" title="${escHtml(p.civilization_display)}">`
-      : `<span class="rp-badge-civ">${escHtml(p.civilization_display)}</span>`;
-    return `<span class="rp-badge" style="--pc:${p.color}">
-      <span class="rp-dot" style="background:${p.color}"></span>
-      <strong>${escHtml(p.name)}</strong>
-      ${civHtml}
-      ${p.is_you ? '<span class="rp-you-tag">You</span>' : ''}
-    </span>`;
-  }).join('');
+  const legendHTML = allPlayers.map(p => buildLegendBadge(p, null, false)).join('');
 
   // ── Row 1: Economy + Military (2 cols) ──
   const row1 = [
@@ -327,7 +337,8 @@ function buildHTML(gameJSON) {
       <button class="rp-close-btn" id="rp-close">Back</button>
       <div class="rp-title-block">
         <span class="rp-game-id">Game #${match.game_id}</span>
-        <span class="rp-meta">${escHtml(match.map)} - ${match.duration_display} - Patch ${match.patch} - ${escHtml(match.server)}</span>
+        <span class="rp-meta">${escHtml(match.map)} - ${match.duration_display} - Patch ${match.patch} - ${escHtml(match.server)} - ${gameJSON.teams[0]?.result ? `<span class="rp-result ${gameJSON.teams[0].result}">${gameJSON.teams[0].result === 'win' ? 'Win' : 'Loss'}</span>` : ''}</span>
+        
       </div>
       <button class="rp-save-btn" id="rp-save-pdf">Save to PDF</button>
       <button class="rp-save-btn rp-save-html-btn" id="rp-save-html">Save HTML</button>
@@ -336,7 +347,7 @@ function buildHTML(gameJSON) {
     <div class="rp-body">
       ${hasEco || hasMil || hasSta || hasAgeEvents ? `
       <section class="rp-section">
-        <div class="rp-legend">${legendHTML}</div>
+        <div class="rp-legend" id="rp-legend">${legendHTML}</div>
         ${rowHTML1}
         ${rowHTML2}
         ${rowHTML3}
@@ -360,6 +371,45 @@ function mkChart(id, cfg) {
   _chartConfigs.push({ id, cfg });
   const c = new window.Chart(el, cfg);
   _charts.push(c);
+}
+
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+
+function fmtRankLevel(rankLevel) {
+  return rankLevel ? rankLevel.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
+}
+
+function buildLegendBadge(p, profile, preferTeam) {
+  const flag    = getCivFlag(p.civilization);
+  const civHtml = flag
+    ? `<img src="${flag}" class="civ-flag" alt="${escHtml(p.civilization_display)}" title="${escHtml(p.civilization_display)}">`
+    : `<span class="rp-badge-civ">${escHtml(p.civilization_display)}</span>`;
+
+  const soloLevel = profile?.modes?.rm_solo?.rank_level ?? null;
+  const teamLevel = profile?.modes?.rm_team?.rank_level ?? null;
+  const rankLevel = preferTeam ? (teamLevel ?? soloLevel) : (soloLevel ?? teamLevel);
+  const rankType  = preferTeam ? (teamLevel ? 'team' : 'solo') : (soloLevel ? 'solo' : 'team');
+  const rankIcon  = getRankIcon(rankLevel, rankType);
+  const rankTitle = fmtRankLevel(rankLevel);
+  const avatar    = profile?.avatars?.small ?? null;
+
+  const avatarHtml = avatar
+    ? `<img src="${escHtml(avatar)}" class="rp-badge-avatar" alt="${escHtml(p.name ?? '')}">`
+    : '';
+  const rankHtml = rankIcon
+    ? `<img src="${rankIcon}" class="rank-icon-sm" alt="${rankTitle}" title="${rankTitle}"><span class="rp-badge-rank">${rankTitle}</span>`
+    : '';
+
+  return `<span class="rp-badge" style="--pc:${p.color}">
+    ${avatarHtml}
+    <span class="rp-dot" style="background:${p.color}"></span>
+    <strong>${escHtml(p.name)}</strong>
+    ${civHtml}
+    ${rankHtml}
+    ${p.is_you ? '<span class="rp-you-tag">You</span>' : ''}
+  </span>`;
 }
 
 /**

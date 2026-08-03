@@ -822,6 +822,9 @@ header p {
 .rp-title-block { display: flex; flex-direction: column; gap: 2px; }
 .rp-game-id { font-size: 1rem; font-weight: 700; color: var(--text-bright); }
 .rp-meta { font-size: .78rem; color: var(--text-muted); }
+.rp-result { font-size: .82rem; font-weight: 700; }
+.rp-result.win  { color: var(--green-light); }
+.rp-result.loss { color: var(--red-light); }
 
 .rp-body { padding: 28px 24px; max-width: 1140px; margin: 0 auto; width: 100%; }
 .rp-section { margin-bottom: 52px; }
@@ -840,6 +843,15 @@ header p {
 }
 .rp-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .rp-badge-civ { opacity: .55; font-size: .75rem; }
+.rp-badge-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,.15);
+}
+.rp-badge-rank { font-size: .72rem; opacity: .8; }
 .rp-you-tag {
   font-size: .65rem;
   background: var(--gold);
