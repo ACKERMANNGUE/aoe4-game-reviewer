@@ -383,7 +383,7 @@ header p {
 .player-avatar-lg {
   width: 42px;
   height: 42px;
-  border-radius: 50%;
+  border-radius: 15%;
   object-fit: cover;
   flex-shrink: 0;
   border: 1px solid var(--border);

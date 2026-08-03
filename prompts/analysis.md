@@ -293,6 +293,26 @@ Example:
 
 Only use this notation for player name references. Do not add it to standalone mentions of civilization names in strategic discussions.
 
+ENTITY ICON NOTATION
+
+When mentioning specific units, buildings, or technologies in the analysis, annotate them with a type prefix in double curly braces. The app will replace these with the corresponding game icon.
+
+Syntax:
+- `{{unit:Name}}` for units
+- `{{building:Name}}` for buildings
+- `{{tech:Name}}` for technologies and upgrades
+- `{{age:Name}}` for age-up events (e.g. Feudal Age, Castle Age, Imperial Age)
+
+Use the **exact name** as it appears in the build order timeline data provided to you (the `name` field in each timeline event). If you are unsure of the exact name, write it as plain text instead.
+
+Examples:
+- "Il a produit {{unit:Yumi Ashigaru}} dès 4:48, alors que..."
+- "La {{building:Stable}} a été construite à 7:09..."
+- "La recherche {{tech:Wheelbarrow}} était prématurée dans ce contexte..."
+- "Il est passé en {{age:Feudal Age}} à 5:22, soit 40 secondes avant l'adversaire."
+
+Only annotate the **first occurrence** of each entity name in a section. Do not repeat the annotation on every mention.
+
 IMPORTANT RULES
 
 - Be direct and critical.

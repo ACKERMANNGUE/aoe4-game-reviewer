@@ -28,7 +28,7 @@ export function renderPlayerInfo(p) {
     </div>`;
   };
 
-  const avatar = p.avatars?.medium ?? p.avatars?.large ?? null;
+  const avatar = p.avatars?.large ?? p.avatars?.medium ?? null;
   const avatarHtml = avatar
     ? `<img src="${escHtml(avatar)}" class="player-avatar-lg" alt="${escHtml(p.name ?? '')}">`
     : '';
