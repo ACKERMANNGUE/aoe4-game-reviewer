@@ -408,6 +408,29 @@ header p {
   margin-bottom: 14px;
 }
 
+/* ──── Rating history chart ──── */
+#rating-history-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-top: 24px;
+}
+
+.section-heading-muted {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+}
+
+.rating-history-wrap {
+  position: relative;
+  height: 220px;
+}
+
 /* ──── Game card ──── */
 .game-card {
   background: var(--bg-card);

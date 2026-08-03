@@ -16,6 +16,8 @@ import {
 // Application state
 // ─────────────────────────────────────────────
 
+let _ratingChart = null;
+
 const state = {
   player:            null,
   allGames:          [],    // all fetched games (before map filter)
@@ -62,6 +64,7 @@ async function handleSearch() {
   clearMessage();
   hidePlayerInfo();
   hideGames();
+  hideRatingHistory();
 
   try {
     let profileId  = null;
@@ -142,9 +145,96 @@ async function loadAndRenderGames(profileId) {
     renderMapFilter(profileId, games);
     applyMapFilter(profileId);
 
+    // Fetch full profile in background for rating history chart
+    getPlayerById(profileId).then(renderRatingHistory).catch(() => {});
+
   } catch (err) {
     listEl.innerHTML = `<div class="message error">Error loading games: ${escHtml(err.message)}</div>`;
   }
+}
+
+function hideRatingHistory() {
+  const el = document.getElementById('rating-history-section');
+  if (el) el.style.display = 'none';
+  if (_ratingChart) { _ratingChart.destroy(); _ratingChart = null; }
+}
+
+function renderRatingHistory(profileData) {
+  const section = document.getElementById('rating-history-section');
+  const canvas  = document.getElementById('rating-history-canvas');
+  if (!section || !canvas || !window.Chart) return;
+
+  const modes = profileData?.modes ?? {};
+  const LB_LABEL = { rm_solo: '1v1 Ranked', rm_team: 'Team Ranked' };
+  const LB_COLOR = { rm_solo: '#4fc3f7', rm_team: '#81c784' };
+
+  const datasets = [];
+  for (const [lb, data] of Object.entries(modes)) {
+    console.log(`[rating] ${lb}:`, data.rating_history ? Object.keys(data.rating_history).length : 0, 'points');
+    if (!LB_LABEL[lb] || !data.rating_history) continue;
+    const points = Object.entries(data.rating_history)
+      .map(([ts, v]) => ({ x: Number(ts) * 1000, y: v.rating }))
+      .sort((a, b) => a.x - b.x);
+    if (points.length < 2) continue;
+    const label = `${LB_LABEL[lb]}${data.season ? ` (S${data.season})` : ''}`;
+    datasets.push({
+      label,
+      data:            points,
+      borderColor:     LB_COLOR[lb] ?? '#888',
+      backgroundColor: 'transparent',
+      tension:         0.3,
+      pointRadius:     3,
+      borderWidth:     2,
+    });
+  }
+
+  if (!datasets.length) return;
+
+  if (_ratingChart) { _ratingChart.destroy(); _ratingChart = null; }
+  section.style.display = 'block';
+
+  const textMuted = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#666';
+  const gridColor = 'rgba(255,255,255,0.05)';
+
+  _ratingChart = new window.Chart(canvas, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive:          true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          type: 'linear',
+          ticks: {
+            color:         textMuted,
+            maxTicksLimit: 8,
+            callback(val) {
+              const d = new Date(val);
+              const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              return `${d.getDate()} ${months[d.getMonth()]}`;
+            },
+          },
+          grid: { color: gridColor },
+        },
+        y: {
+          ticks:  { color: textMuted },
+          grid:   { color: gridColor },
+        },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: textMuted, font: { size: 12 }, boxWidth: 24 } },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const d = new Date(items[0].parsed.x);
+              return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+            },
+          },
+        },
+      },
+    },
+  });
 }
 
 /** Populate the map filter chips from the loaded games. */
@@ -633,7 +723,7 @@ function init() {
   document.getElementById('search-btn').addEventListener('click', handleSearch);
 
   document.getElementById('game-limit').addEventListener('change', e => {
-    state.gameLimit = parseInt(e.target.value, 10);
+    state.gameLimit = parseInt(e.target.value, 50);
     if (state.player) loadAndRenderGames(state.player.profile_id);
   });
 
