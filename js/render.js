@@ -17,10 +17,10 @@ export function renderPlayerInfo(p) {
   const rank     = primary?.rank    ?? '--';
   const wr       = primary?.win_rate ?? '--';
 
-  const rankBadge = (data, label) => {
+  const rankBadge = (data, label, type) => {
     if (!data?.rank_level) return '';
     const lvlDisplay = fmtRankLevel(data.rank_level);
-    const icon = getRankIcon(data.rank_level);
+    const icon = getRankIcon(data.rank_level, type);
     const iconHtml = icon ? `<img src="${icon}" class="rank-icon" alt="${lvlDisplay}">` : '';
     return `<div class="rank-badge">
       ${iconHtml}
@@ -44,8 +44,8 @@ export function renderPlayerInfo(p) {
       </div>
     </div>
     <div class="rank-badges">
-      ${rankBadge(soloData, 'Solo')}
-      ${rankBadge(teamData, 'Team')}
+      ${rankBadge(soloData, 'Solo', 'solo')}
+      ${rankBadge(teamData, 'Team', 'team')}
     </div>
   `;
   el.classList.add('visible');
@@ -144,7 +144,7 @@ function fmtRankLevel(rankLevel) {
   return rankLevel ? rankLevel.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
 }
 
-export function buildTeamRowsHTML(players, allPlayers, playerProfiles, right = false) {
+export function buildTeamRowsHTML(players, allPlayers, playerProfiles, right = false, preferTeam = false) {
   const playerColor = (p) =>
     p.color ?? PLAYER_COLORS[allPlayers.findIndex(ap => String(ap.profile_id) === String(p.profile_id))] ?? '#888';
 
@@ -158,8 +158,11 @@ export function buildTeamRowsHTML(players, allPlayers, playerProfiles, right = f
 
     const profile   = playerProfiles[String(p.profile_id)];
     const avatar    = profile?.avatars?.small ?? null;
-    const rankLevel = profile?.modes?.rm_solo?.rank_level ?? profile?.modes?.rm_team?.rank_level ?? null;
-    const rankIcon  = getRankIcon(rankLevel);
+    const soloLevel = profile?.modes?.rm_solo?.rank_level ?? null;
+    const teamLevel = profile?.modes?.rm_team?.rank_level ?? null;
+    const rankLevel = preferTeam ? (teamLevel ?? soloLevel) : (soloLevel ?? teamLevel);
+    const rankType  = preferTeam ? (teamLevel ? 'team' : 'solo') : (soloLevel ? 'solo' : 'team');
+    const rankIcon  = getRankIcon(rankLevel, rankType);
     const rankTitle = fmtRankLevel(rankLevel);
 
     const avatarHtml = avatar
@@ -198,7 +201,8 @@ export function renderGameModalContent(game, profileId, myTeam, oppTeam, playerP
   const delta = me?.mmr_diff ?? me?.rating_diff ?? 0;
 
   const allPlayers = [...myTeam, ...oppTeam];
-  const teamRow = (players, right = false) => buildTeamRowsHTML(players, allPlayers, playerProfiles, right);
+  const preferTeam = game.leaderboard === 'rm_team';
+  const teamRow = (players, right = false) => buildTeamRowsHTML(players, allPlayers, playerProfiles, right, preferTeam);
 
   return `
     <div class="modal-header">
@@ -277,7 +281,8 @@ export function renderSavedReportModal(game, profileId, myTeam, oppTeam, savedAt
   const delta = me?.mmr_diff ?? me?.rating_diff ?? 0;
 
   const allPlayers = [...myTeam, ...oppTeam];
-  const teamRow = (players, right = false) => buildTeamRowsHTML(players, allPlayers, playerProfiles, right);
+  const preferTeam = game.leaderboard === 'rm_team';
+  const teamRow = (players, right = false) => buildTeamRowsHTML(players, allPlayers, playerProfiles, right, preferTeam);
 
   const savedDate = new Date(savedAt).toLocaleString(undefined, {
     day: '2-digit', month: '2-digit', year: 'numeric',

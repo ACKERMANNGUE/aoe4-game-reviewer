@@ -29,17 +29,11 @@ export function getCivFlag(civ) {
   return file ? `flags/${file}` : null;
 }
 
-export function getRankIcon(rankLevel) {
+export function getRankIcon(rankLevel, type = 'solo') {
   if (!rankLevel) return null;
-  const tier = rankLevel.toLowerCase();
-  if (tier.startsWith('bronze'))            return 'ranks/aoe4-rank-bronze.png';
-  if (tier.startsWith('silver'))            return 'ranks/aoe4-rank-silver.png';
-  if (tier.startsWith('gold'))              return 'ranks/aoe4-rank-gold.png';
-  if (tier.startsWith('platinum'))          return 'ranks/aoe4-rank-platinum.png';
-  if (tier.startsWith('diamond'))           return 'ranks/aoe4-rank-diamond.png';
-  if (tier === 'conqueror_3')               return 'ranks/aoe4-rank-conqueror_3.png';
-  if (tier.startsWith('conqueror'))         return 'ranks/aoe4-rank-conqueror_1-2.png';
-  return null;
+  const folder = type === 'team' ? 'ranks/teams' : 'ranks/solo';
+  const prefix = type === 'team' ? 'team' : 'solo';
+  return `${folder}/${prefix}_${rankLevel.toLowerCase()}.svg`;
 }
 
 export function getLBName(lb) {

@@ -290,10 +290,12 @@ function openGameModal(game, profileId) {
         .catch(() => {})
     )
   ).then(() => {
-    const leftEl  = document.getElementById('vs-left');
-    const rightEl = document.getElementById('vs-right');
-    if (leftEl)  leftEl.innerHTML  = buildTeamRowsHTML(myTeam,          [...myTeam, ...resolvedOppTeam], playerProfiles, false);
-    if (rightEl) rightEl.innerHTML = buildTeamRowsHTML(resolvedOppTeam, [...myTeam, ...resolvedOppTeam], playerProfiles, true);
+    const leftEl    = document.getElementById('vs-left');
+    const rightEl   = document.getElementById('vs-right');
+    const allP      = [...myTeam, ...resolvedOppTeam];
+    const preferTeam = game.leaderboard === 'rm_team';
+    if (leftEl)  leftEl.innerHTML  = buildTeamRowsHTML(myTeam,          allP, playerProfiles, false, preferTeam);
+    if (rightEl) rightEl.innerHTML = buildTeamRowsHTML(resolvedOppTeam, allP, playerProfiles, true,  preferTeam);
   });
 }
 
