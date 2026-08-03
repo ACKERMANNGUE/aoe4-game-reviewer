@@ -124,7 +124,7 @@ async function exportHTML(gameJSON) {
     const clone = body.cloneNode(true);
 
     // 1b. Inline flag images as base64 so the export is fully self-contained
-    const flagImgs = [...clone.querySelectorAll('img.civ-flag, img.civ-flag-inline, img.entity-icon-inline')];
+    const flagImgs = [...clone.querySelectorAll('img.civ-flag, img.civ-flag-inline, img.entity-icon-inline, img.rank-icon, img.rank-icon-sm, img.rp-badge-avatar, img.player-avatar, img.player-avatar-lg')];
     const uniqueSrcs = [...new Set(flagImgs.map(img => img.src))];
     const dataUriMap = {};
     await Promise.all(uniqueSrcs.map(async (src) => {
