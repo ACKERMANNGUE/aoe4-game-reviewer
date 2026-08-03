@@ -120,7 +120,7 @@ header p {
 }
 .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--text-muted); filter: none; }
 
-.btn-green { background: var(--green); color: #fff; border-color: transparent; }
+.btn-green { background: var(--gold); color: #fff; border-color: transparent; }
 
 .btn-accent { background: var(--blue); color: #fff; border-color: transparent; }
 
@@ -467,8 +467,8 @@ header p {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .05em;
-  color: var(--green-light);
-  border: 1px solid var(--green);
+  color: var(--gold-light);
+  border: 1px solid var(--gold);
   border-radius: 4px;
   padding: 1px 5px;
   margin-top: 4px;
@@ -483,7 +483,7 @@ header p {
   margin-top: 16px;
   padding: 10px 14px;
   background: rgba(30, 132, 73, .08);
-  border: 1px solid var(--green);
+  border: 1px solid var(--gold);
   border-radius: var(--radius);
 }
 .saved-report-chip {
@@ -491,7 +491,7 @@ header p {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .05em;
-  color: var(--green-light);
+  color: var(--gold-light);
 }
 .saved-report-date {
   font-size: .78rem;

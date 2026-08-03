@@ -208,7 +208,7 @@ export function renderGameModalContent(game, profileId, myTeam, oppTeam, playerP
     <div class="modal-header">
       <h2>
         Game #${game.game_id}
-        <span class="modal-result-inline ${isWin ? 'win' : 'loss'}"> - ${isWin ? 'Win' : 'Loss'}</span>
+        <span class="modal-result-inline ${isWin ? 'win' : 'loss'}"> ${isWin ? 'Win' : 'Loss'}</span>
       </h2>
       <div class="meta">${date} - ${dur} - Patch ${game.patch} - ${game.server}</div>
     </div>
