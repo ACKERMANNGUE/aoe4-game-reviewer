@@ -406,10 +406,11 @@ async function startConversion() {
     const prompt = await getPrompt(pName, state.convertedJSON);
     try {
       await navigator.clipboard.writeText(prompt);
+      window.open('https://chatgpt.com', '_blank', 'noopener');
       const el = document.getElementById('copy-confirm');
       if (el) {
-        el.innerHTML = '<div class="message success">Prompt copied! Paste into ChatGPT <strong>with Code Interpreter enabled</strong>. ChatGPT will generate a .md file - download it, then load it here.</div>';
-        setTimeout(() => { const e2 = document.getElementById('copy-confirm'); if (e2) e2.innerHTML = ''; }, 5000);
+        el.innerHTML = '<div class="message success">Prompt copied &amp; ChatGPT opened -  press <strong>Ctrl+V</strong> then <strong>Enter</strong>. Enable <strong>Code Interpreter</strong>. Download the .md file it generates, then load it here.</div>';
+        setTimeout(() => { const e2 = document.getElementById('copy-confirm'); if (e2) e2.innerHTML = ''; }, 8000);
       }
     } catch (e) {
       const el = document.getElementById('copy-confirm');
