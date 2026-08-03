@@ -402,14 +402,14 @@ function buildLegendBadge(p, profile, preferTeam) {
     ? `<img src="${rankIcon}" class="rank-icon-sm" alt="${rankTitle}" title="${rankTitle}"><span class="rp-badge-rank">${rankTitle}</span>`
     : '';
 
-  return `<span class="rp-badge" style="--pc:${p.color}">
+  return `<a class="rp-badge" style="--pc:${p.color}" href="https://aoe4world.com/players/${p.profile_id}" target="_blank" rel="noopener">
     ${avatarHtml}
     <span class="rp-dot" style="background:${p.color}"></span>
     <strong>${escHtml(p.name)}</strong>
     ${civHtml}
     ${rankHtml}
     ${p.is_you ? '<span class="rp-you-tag">You</span>' : ''}
-  </span>`;
+  </a>`;
 }
 
 /**

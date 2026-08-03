@@ -840,6 +840,12 @@ header p {
   border: 1px solid var(--pc, #444);
   font-size: .8rem;
   color: var(--text-bright);
+  text-decoration: none;
+  transition: transform .15s, box-shadow .15s;
+}
+.rp-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.35);
 }
 .rp-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .rp-badge-civ { opacity: .55; font-size: .75rem; }
