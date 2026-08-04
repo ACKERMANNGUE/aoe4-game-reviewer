@@ -447,7 +447,7 @@ async function startConversion() {
 
     // When the HTML page is inaccessible (private/custom game) but an api_key is set,
     // create a synthetic result so extractBuildOrder can still hit the summary JSON
-    // endpoint directly (profileId + gameId → constructed fallback URL + api_key).
+    // endpoint directly (profileId + gameId -> constructed fallback URL + api_key).
     if (!result && state.apiKey) {
       result = { html: '', source: 'api-key-direct', summaryUrl: null, profileId, gameId };
     }

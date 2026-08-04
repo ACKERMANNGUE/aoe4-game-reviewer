@@ -160,6 +160,10 @@ prompts/
 ## Notes and known limitations
 
 - The build order (timeline events) is scraped from the AoE4World game page HTML. This is the most fragile part of the data pipeline. If AoE4World changes its page structure, the build order parser may break. Economy and military snapshots come from the JSON API and are more stable.
+
+  **Name and icon resolution** works in two layers (annoying but I didn't find a better way at this time) :
+  1. *Automatic (primary):* the parser cross-references the JSON API data with the SSR-rendered HTML from the same page. It builds a word-index from every display name on the page (`"Batu Khan"` -> indexed under `"batu"` and `"khan"`) and uses it to match internal API slugs (`unit_khan`) to the correct CDN image and display name. No manual mapping is needed for this path.
+  2. *Static fallback (secondary):* when the page HTML does not contain SSR build order content (private games, proxy timeout, custom matches), the parser falls back to constructing the CDN URL from the API icon path. A small table of known slug aliases in `js/build-order.js` (`SLUG_ALIASES`) handles cases where the API internal name differs from the CDN filename (e.g. `khan` -> `batu-khan-2`). If you encounter a broken icon exclusively in private/custom games and the icon is correct in public games, add the mapping there.
 - Private and custom game data may not be accessible without an API key and a share URL provided by one of the participants.
 - AI opponent data (name, economy, military) is only available when the match data is exported through this app. Older saved reports generated before this feature was added will show numbered placeholders instead of real AI names.
 - Reports are stored in `localStorage`. They will be lost if you clear browser data. Use the HTML export feature to create permanent copies.

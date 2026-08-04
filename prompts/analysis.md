@@ -263,29 +263,29 @@ Whenever you write the name of a player in the analysis, append their civilizati
 Use the lowercase API key, not the display name.
 
 Available keys and their display names:
-- `{{abbasid_dynasty}}` → Abbasid Dynasty
-- `{{ayyubids}}` → Ayyubids
-- `{{byzantines}}` → Byzantines
-- `{{chinese}}` → Chinese
-- `{{delhi_sultanate}}` → Delhi Sultanate
-- `{{english}}` → English
-- `{{french}}` → French
-- `{{golden_horde}}` → Golden Horde
-- `{{holy_roman_empire}}` → Holy Roman Empire
-- `{{house_of_lancaster}}` → House of Lancaster
-- `{{japanese}}` → Japanese
-- `{{jeanne_darc}}` → Jeanne d'Arc
-- `{{jin_dynasty}}` → Jin Dynasty
-- `{{knight_templar}}` → Knight Templar
-- `{{macedonian_dynasty}}` → Macedonian Dynasty
-- `{{malians}}` → Malians
-- `{{mongols}}` → Mongols
-- `{{order_of_the_dragon}}` → Order of the Dragon
-- `{{ottomans}}` → Ottomans
-- `{{rus}}` → Rus
-- `{{sengoku}}` → Sengoku
-- `{{tughlaq_dynasty}}` → Tughlaq Dynasty
-- `{{zhu_xi_legacy}}` → Zhu Xi's Legacy
+- `{{abbasid_dynasty}}` -> Abbasid Dynasty
+- `{{ayyubids}}` -> Ayyubids
+- `{{byzantines}}` -> Byzantines
+- `{{chinese}}` -> Chinese
+- `{{delhi_sultanate}}` -> Delhi Sultanate
+- `{{english}}` -> English
+- `{{french}}` -> French
+- `{{golden_horde}}` -> Golden Horde
+- `{{holy_roman_empire}}` -> Holy Roman Empire
+- `{{house_of_lancaster}}` -> House of Lancaster
+- `{{japanese}}` -> Japanese
+- `{{jeanne_darc}}` -> Jeanne d'Arc
+- `{{jin_dynasty}}` -> Jin Dynasty
+- `{{knight_templar}}` -> Knight Templar
+- `{{macedonian_dynasty}}` -> Macedonian Dynasty
+- `{{malians}}` -> Malians
+- `{{mongols}}` -> Mongols
+- `{{order_of_the_dragon}}` -> Order of the Dragon
+- `{{ottomans}}` -> Ottomans
+- `{{rus}}` -> Rus
+- `{{sengoku}}` -> Sengoku
+- `{{tughlaq_dynasty}}` -> Tughlaq Dynasty
+- `{{zhu_xi_legacy}}` -> Zhu Xi's Legacy
 
 Example:
 "Akiruu {{japanese}} a produit 3 cavaliers..."

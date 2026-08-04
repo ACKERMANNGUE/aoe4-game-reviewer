@@ -18,8 +18,8 @@ Do NOT output the Python code as a text block. Execute it directly.
   These are the first pages of the PDF (after the cover).
   Do NOT shorten, summarise, or replace this text with a placeholder.**
 - **MANDATORY: the PDF MUST contain actual matplotlib charts.**
-  If `economy_snapshots` is present → economy charts are REQUIRED.
-  If `military_snapshots` is present → military charts are REQUIRED.
+  If `economy_snapshots` is present -> economy charts are REQUIRED.
+  If `military_snapshots` is present -> military charts are REQUIRED.
   Do NOT replace any chart with a text note saying data is unavailable.
 
 ### PDF structure

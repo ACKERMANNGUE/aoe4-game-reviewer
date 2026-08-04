@@ -94,8 +94,8 @@ export async function extractBuildOrder(result, playerName, oppName, apiKey = ''
 
     // Try local server proxy first - avoids CORS limits and forwards api_key/sig server-side.
     // Two URL formats tried:
-    //   1. /api/  → proxied to https://aoe4world.com/api/v0/...  (api_key supported)
-    //   2. /web-proxy/ → proxied to https://aoe4world.com/...    (sig supported)
+    //   1. /api/  -> proxied to https://aoe4world.com/api/v0/...  (api_key supported)
+    //   2. /web-proxy/ -> proxied to https://aoe4world.com/...    (sig supported)
     if (result.profileId && result.gameId && (apiKey || sig)) {
       const relPath  = `/players/${result.profileId}/games/${result.gameId}/summary?camelize=true`;
       const localUrls = [
@@ -119,12 +119,18 @@ export async function extractBuildOrder(result, playerName, oppName, apiKey = ''
               if (tl && tl.length > 0) {
                 // Enrich with actual CDN URLs extracted from the HTML page
                 const _hmap = extractIconMapFromHTML(html);
-                for (const ev of tl) { if (ev.name && _hmap[ev.name.toLowerCase()]) ev.iconUrl = _hmap[ev.name.toLowerCase()]; }
+                for (const ev of tl) {
+                  if (!ev.name) continue;
+                  const found = _hmap.nameMap[ev.name.toLowerCase()]
+                    ?? resolveFromWordMap(_hmap.wordMap, ev.name);
+                  if (found) { ev.name = found.name; ev.iconUrl = found.url; }
+                }
+                logBuildOrderItems(tl, 'summary-json', _hmap);
                 return {
                   timeline:          tl,
                   method:            'summary-json',
                   economySnapshots:  extractEconomySnapshots(data, playerName, oppName),
-                  militarySnapshots: extractMilitarySnapshots(data, playerName, oppName),
+                  militarySnapshots: extractMilitarySnapshots(data, playerName, oppName, _hmap),
                   statistics:        extractStatistics(data, playerName, oppName),
                 };
               }
@@ -164,12 +170,18 @@ export async function extractBuildOrder(result, playerName, oppName, apiKey = ''
         if (tl && tl.length > 0) {
           // Enrich with actual CDN URLs extracted from the HTML page
           const _hmap = extractIconMapFromHTML(html);
-          for (const ev of tl) { if (ev.name && _hmap[ev.name.toLowerCase()]) ev.iconUrl = _hmap[ev.name.toLowerCase()]; }
+          for (const ev of tl) {
+            if (!ev.name) continue;
+            const found = _hmap.nameMap[ev.name.toLowerCase()]
+              ?? resolveFromWordMap(_hmap.wordMap, ev.name);
+            if (found) { ev.name = found.name; ev.iconUrl = found.url; }
+          }
+          logBuildOrderItems(tl, 'summary-json', _hmap);
           return {
             timeline:          tl,
             method:            'summary-json',
             economySnapshots:  extractEconomySnapshots(data, playerName, oppName),
-            militarySnapshots: extractMilitarySnapshots(data, playerName, oppName),
+            militarySnapshots: extractMilitarySnapshots(data, playerName, oppName, _hmap),
             statistics:        extractStatistics(data, playerName, oppName),
           };
         }
@@ -179,11 +191,17 @@ export async function extractBuildOrder(result, playerName, oppName, apiKey = ''
 
   // ── B. CSS-class based HTML parser ──
   const tl2 = parseAoE4WorldBuildOrderHTML(html, playerName, oppName);
-  if (tl2.length > 0) return { timeline: tl2, method: 'html-css-classes', economySnapshots: null, militarySnapshots: null, statistics: null };
+  if (tl2.length > 0) {
+    logBuildOrderItems(tl2, 'html-css-classes');
+    return { timeline: tl2, method: 'html-css-classes', economySnapshots: null, militarySnapshots: null, statistics: null };
+  }
 
   // ── C. Generic img-src fallback ──
   const tl3 = parseImagesFromHTML(html, playerName, oppName);
-  if (tl3.length > 0) return { timeline: tl3, method: 'img-ssr', economySnapshots: null, militarySnapshots: null, statistics: null };
+  if (tl3.length > 0) {
+    logBuildOrderItems(tl3, 'img-ssr');
+    return { timeline: tl3, method: 'img-ssr', economySnapshots: null, militarySnapshots: null, statistics: null };
+  }
 
   return { timeline: [], method: 'none', economySnapshots: null, militarySnapshots: null, statistics: null };
 }
@@ -244,7 +262,7 @@ function extractEconomySnapshots(data, playerName, oppName) {
  * Returns { player: { name, snapshots: [{ time, total, units }] },
  *           opponent: { ... } }  or null.
  */
-function extractMilitarySnapshots(data, playerName, oppName) {
+function extractMilitarySnapshots(data, playerName, oppName, hmap = null) {
   if (!data?.players) return null;
   const duration = data.duration || 0;
 
@@ -269,8 +287,10 @@ function extractMilitarySnapshots(data, playerName, oppName) {
       const units = {};
       let total = 0;
       for (const item of unitItems) {
-        const name = iconToName(item.icon || '');
-        if (!name) continue;
+        const rawName = iconToName(item.icon || '');
+        if (!rawName) continue;
+        const hmapEntry = hmap ? (hmap.nameMap[rawName.toLowerCase()] ?? resolveFromWordMap(hmap.wordMap, rawName)) : null;
+        const name = hmapEntry ? hmapEntry.name : rawName;
         const alive = (item.finished  || []).filter(ts => ts <= t).length
                     - (item.destroyed || []).filter(ts => ts <= t).length;
         if (alive > 0) {
@@ -612,10 +632,41 @@ function parseImagesFromHTML(html, playerName, opponentName) {
 // Shared helpers
 // ─────────────────────────────────────────────
 
+/** Finds the first unambiguous word-index entry matching any 4+ char word in `name`. */
+function resolveFromWordMap(wordMap, name) {
+  for (const word of name.toLowerCase().split(/[\s\-]+/).filter(w => w.length >= 4)) {
+    if (wordMap[word]) return wordMap[word];
+  }
+  return null;
+}
+
+/**
+ * Log a parsed build-order timeline as a console table.
+ * When htmlIconMap is provided, also logs the raw aoe4world HTML map so
+ * the caller can verify that names and icons match the site exactly.
+ */
+function logBuildOrderItems(timeline, method, htmlIconMap = null) {
+  const nm = htmlIconMap?.nameMap ?? {};
+  if (Object.keys(nm).length > 0) {
+    console.group(`[build-order] aoe4world HTML icon map (${Object.keys(nm).length} entries)`);
+    console.table(Object.entries(nm).map(([, e]) => ({ name: e.name, iconUrl: e.url })));
+    console.groupEnd();
+  }
+  console.group(`[build-order] timeline · ${method} · ${timeline.length} events`);
+  console.table(timeline.map(ev => ({
+    time:   `${String(Math.floor(ev.time / 60)).padStart(2, '0')}:${String(ev.time % 60).padStart(2, '0')}`,
+    player: ev.player,
+    type:   ev.type,
+    name:   ev.name,
+    icon:   ev.iconUrl ?? '(none)',
+  })));
+  console.groupEnd();
+}
+
 /**
  * Convert an AoE4World API icon path to a CDN image URL.
  * e.g. "icons/races/japanese/units/unit_yumi-ashigaru-2"
- *   → "https://data.aoe4world.com/images/units/yumi-ashigaru-2.png"
+ *   -> "https://data.aoe4world.com/images/units/yumi-ashigaru-2.png"
  *
  * typeHint: 'Unit' | 'Building' | 'Technology' | 'Upgrade' - from item.type in Parser A.
  * Overrides the path-derived category for unit and building items.
@@ -636,9 +687,16 @@ function iconPathToUrl(iconPath, typeHint = null) {
     .replace(/^technology_/, '').replace(/^upgrade_/, '')
     .replace(/_/g, '-');
 
+  // Normalize API slug patterns that differ from CDN conventions
+  slug = slug.replace(/-age(-\d+)$/, '$1');                   // heavy-spearman-age-3 -> heavy-spearman-3
+  slug = slug.replace(/^manatarms(?=-\d|$)/, 'man-at-arms'); // manatarms-2 -> man-at-arms-2
+
   // CDN uses different slugs for some units/buildings
   const SLUG_ALIASES = {
     // Units whose internal API name differs from the CDN filename
+    'black-knight-rider':   'black-rider-4',
+    'black-knight-rider-4': 'black-rider-4',
+    'khan':              'batu-khan-2',
     'ram':               'battering-ram-3',
     'siege-tower':       'siege-tower-1',
     'mangonel':          'mangonel-2',
@@ -691,33 +749,43 @@ function iconPathToUrl(iconPath, typeHint = null) {
 }
 
 /**
- * Build a name → iconUrl map from the AoE4World build order HTML.
+ * Build a name -> iconUrl map from the AoE4World build order HTML.
  * Extracts the actual CDN image URLs straight from the \u003cimg\u003e elements.
  * Used to enrich Parser A (JSON API) results.
  */
 function extractIconMapFromHTML(html) {
-  if (typeof DOMParser === 'undefined') return {};
+  if (typeof DOMParser === 'undefined') return { nameMap: {}, wordMap: {} };
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const map = {};
+  const nameMap = {};
   // Method 1: CSS-class structure (same as parser B)
   for (const er of doc.querySelectorAll('div.flex.p-1.rounded.items-center')) {
     const imgEl = er.querySelector('img[src*="data.aoe4world.com/images"]');
     if (!imgEl) continue;
-    const src  = imgEl.getAttribute('src');
-    if (!src) continue;
+    const url  = imgEl.getAttribute('src');
+    if (!url) continue;
     const name = er.querySelector('span.flex-auto')?.textContent?.trim();
-    if (name) map[name.toLowerCase()] = src;
+    if (name) nameMap[name.toLowerCase()] = { name, url };
   }
   // Method 2: any img with non-empty alt (fallback when CSS structure not found)
-  if (Object.keys(map).length === 0) {
+  if (Object.keys(nameMap).length === 0) {
     for (const img of doc.querySelectorAll('img[src*="data.aoe4world.com/images"]')) {
-      const src = img.getAttribute('src');
-      if (!src || !/\/(units|buildings|technologies|upgrades)\//.test(src)) continue;
+      const url = img.getAttribute('src');
+      if (!url || !/\/(units|buildings|technologies|upgrades)\//.test(url)) continue;
       const alt = (img.getAttribute('alt') || '').trim();
-      if (alt && alt !== 'Image') map[alt.toLowerCase()] = src;
+      if (alt && alt !== 'Image') nameMap[alt.toLowerCase()] = { name: alt, url };
     }
   }
-  return map;
+  // Word index: 4+ char words that are UNIQUE across all entries (null = ambiguous, deleted)
+  const wordMap = {};
+  for (const [key, entry] of Object.entries(nameMap)) {
+    for (const word of key.split(/[\s\-]+/).filter(w => w.length >= 4)) {
+      wordMap[word] = (word in wordMap) ? null : entry;
+    }
+  }
+  for (const word of Object.keys(wordMap)) {
+    if (wordMap[word] === null) delete wordMap[word];
+  }
+  return { nameMap, wordMap };
 }
 
 /**
@@ -748,12 +816,29 @@ export function iconToName(iconPath) {
   const civUnitKey = civ ? `${civ}/${slug}` : null;
   if (civUnitKey && CIV_UNIT_NAMES[civUnitKey]) return CIV_UNIT_NAMES[civUnitKey];
 
-  return slug
+  // Display name overrides for slugs whose word-split result differs from the in-game name
+  const SLUG_NAME_OVERRIDES = {
+    'man-at-arms':        'Man-at-Arms',
+    'manatarms':          'Man-at-Arms',
+    'black-knight-rider': 'Black Rider',
+    'khan':               'Batu Khan',
+  };
+
+  const cleanedSlug = slug
     .replace(/^building_landmark_/, '')
     .replace(/^building_/, '')
     .replace(/^unit_/, '')
     .replace(/^upgrade_/, '')
     .replace(/^technology_/, '')
+    .replace(/-age(-\d+)$/, '$1')                   // heavy-spearman-age-3 -> heavy-spearman-3
+    .replace(/^manatarms(?=-\d|$)/, 'man-at-arms'); // manatarms -> man-at-arms
+
+  // Look up by base name (strip tier suffix) so all tier variants resolve to the same display name
+  const baseSlug = cleanedSlug.replace(/-\d+$/, '');
+  if (SLUG_NAME_OVERRIDES[baseSlug])    return SLUG_NAME_OVERRIDES[baseSlug];
+  if (SLUG_NAME_OVERRIDES[cleanedSlug]) return SLUG_NAME_OVERRIDES[cleanedSlug];
+
+  return baseSlug
     .split(/[_-]/)
     .filter(Boolean)
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))

@@ -413,7 +413,7 @@ function buildLegendBadge(p, profile, preferTeam) {
 }
 
 /**
- * Build a name → iconUrl map from the timeline for entity icon replacement in markdown.
+ * Build a name -> iconUrl map from the timeline for entity icon replacement in markdown.
  * Keys are lowercased entity names; values are absolute image URLs scraped from the build order page.
  */
 function buildIconMap(timeline) {

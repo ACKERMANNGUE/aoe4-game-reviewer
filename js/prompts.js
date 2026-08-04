@@ -52,7 +52,7 @@ REMINDER: Use your code interpreter to save the full analysis to \`aoe4_analysis
 
 /**
  * Build the PDF structure description embedded in the pdf-task template.
- * Sections are ordered: Cover → Analysis text → Per-player → Overall eco → Overall mil → Stats.
+ * Sections are ordered: Cover -> Analysis text -> Per-player -> Overall eco -> Overall mil -> Stats.
  */
 function buildPdfStructure(hasEco, hasMil, totalPlayers) {
   const parts = [];

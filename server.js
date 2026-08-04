@@ -96,7 +96,7 @@ async function proxyUrl(targetUrl, res) {
 }
 
 const server = http.createServer((req, res) => {
-  // /api/*  →  https://aoe4world.com/api/v0/*
+  // /api/*  ->  https://aoe4world.com/api/v0/*
   if (req.url.startsWith('/api/')) {
     const apiPath = '/api/v0/' + req.url.slice('/api/'.length);
     proxyUrl('https://aoe4world.com' + apiPath, res).catch(err => {
@@ -106,7 +106,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // /web-proxy/*  →  https://aoe4world.com/*  (for non-API paths, e.g. /players/*/summary)
+  // /web-proxy/*  ->  https://aoe4world.com/*  (for non-API paths, e.g. /players/*/summary)
   if (req.url.startsWith('/web-proxy/')) {
     const webPath = req.url.slice('/web-proxy'.length);
     proxyUrl('https://aoe4world.com' + webPath, res).catch(err => {
