@@ -380,9 +380,6 @@ export function setStep(id, text, status) {
 }
 
 export function renderConversionResult({ buildOrderOK, economyOK, militaryOK, gameJSON, filename }) {
-  const jsonLines   = JSON.stringify(gameJSON, null, 2).split('\n');
-  const previewText = jsonLines.slice(0, 32).join('\n') + (jsonLines.length > 32 ? '\n  ...' : '');
-
   return `
     <div class="data-quality">
       <span class="quality-chip ok">+ Metadata</span>
@@ -399,8 +396,8 @@ export function renderConversionResult({ buildOrderOK, economyOK, militaryOK, ga
         (Options &gt; Gameplay &gt; Match History &gt; Public).
       </span>
     </div>` : ''}
-    <div class="section-title">JSON preview</div>
-    <div class="json-preview">${escHtml(previewText)}</div>
+    <div class="section-title">Game informations</div>
+    <textarea id="game-info-input" class="game-info-textarea" placeholder="Add extra context about this game (e.g. strategy used, key moments, opponent's behaviour...)"></textarea>
     <div class="result-actions">
 
       <div class="result-step">

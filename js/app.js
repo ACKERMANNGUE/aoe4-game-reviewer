@@ -494,8 +494,10 @@ async function startConversion() {
     if (!state.convertedJSON) return;
     const pName  = state.convertedJSON.teams?.[0]?.players?.find(p => p.is_you)?.name ?? 'Player';
     const prompt = await getPrompt(pName, state.convertedJSON);
+    const gameInfo = document.getElementById('game-info-input')?.value?.trim();
+    const fullPrompt = gameInfo ? prompt + '\n\n' + gameInfo : prompt;
     try {
-      await navigator.clipboard.writeText(prompt);
+      await navigator.clipboard.writeText(fullPrompt);
       window.open('https://chatgpt.com', '_blank', 'noopener');
       const el = document.getElementById('copy-confirm');
       if (el) {
